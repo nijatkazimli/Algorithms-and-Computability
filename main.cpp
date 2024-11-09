@@ -1,5 +1,6 @@
 #include<iostream>
 #include <fstream>
+#include <vector>
 
 using namespace std;
 
@@ -143,9 +144,10 @@ void Graph::minimalExtension() {
 int main() {
     string graph1FileName = "graph.txt";
     string graph2FileName = "another_graph.txt";
+    string graph3FileName = "graph3.txt";
 
     Graph graph(graph1FileName);
-    Graph anotherGraph(graph2FileName);
+    Graph anotherGraph(graph3FileName);
 
     cout << "Size of the graph: " << graph.size() << endl;
     cout << "Hamming distance between graphs: " << graph.hammingDistance(anotherGraph) << endl;
