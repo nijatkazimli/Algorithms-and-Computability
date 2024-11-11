@@ -1,7 +1,11 @@
 #include<iostream>
 #include <fstream>
+#include <filesystem>
+#include <vector>
+#include <string>
 
 using namespace std;
+namespace fs = filesystem;
 
 class IGraph {
 public:
@@ -15,6 +19,7 @@ public:
 class Graph : public IGraph {
 public:
     Graph(const string& filename);
+    string name;
     int size() const override;
     int hammingDistance(const IGraph& other) const override;
     int maximalCycleLength() const override;
@@ -33,6 +38,8 @@ Graph::Graph(const string& filename) {
         cerr << "Unable to open file" << endl;
         exit(1);
     }
+
+    name = filename;
 
     int n;
     file >> n;
@@ -141,15 +148,148 @@ void Graph::minimalExtension() {
 }
 
 int main() {
-    string graph1FileName = "graph.txt";
-    string graph2FileName = "another_graph.txt";
+    vector<Graph> graphs;
 
-    Graph graph(graph1FileName);
-    Graph anotherGraph(graph2FileName);
+    for (const auto& entry : filesystem::directory_iterator(fs::current_path())) {
+        if (entry.is_regular_file() && entry.path().extension() == ".txt") {
+            string fileName = entry.path().filename().string();
+            Graph graph = Graph(fileName);
+            graphs.push_back(graph);
+        }
+    }
 
-    cout << "Size of the graph: " << graph.size() << endl;
-    cout << "Hamming distance between graphs: " << graph.hammingDistance(anotherGraph) << endl;
-    cout << "Maximal cycle length: " << graph.maximalCycleLength() << endl;
-    graph.minimalExtension();
+    const string red = "\033[1;31m";
+    const string green = "\033[1;32m";
+    const string blue = "\033[1;34m";
+    const string yellow = "\033[1;33m";
+    const string magento = "\033[38;5;129m";
+    const string reset = "\033[0m";
+
+    cout << magento << "Algorithms and Computability " << reset << endl;
+
+    if (!graphs.empty()) {
+        cout << endl;
+        cout << yellow << "Graph files found in current directory:\n" << reset;
+        for (size_t i = 0; i < graphs.size(); ++i) {
+            cout << "\t" << blue << i << ": " << green << graphs[i].name << reset << endl;
+        }
+    } else {
+        cout << red << "No .txt files found in the current directory." << reset << endl;
+        return 1;
+    }
+
+    cout << endl;
+    cout << yellow << "Program modes:" << reset << endl;
+    cout << "\t" << blue << 0 << ": " << green << "size of graph" << reset << endl;
+    cout << "\t" << blue << 1 << ": " << green << "hamming distance" << reset << endl;
+    cout << "\t" << blue << 2 << ": " << green << "maximal cycle length" << reset << endl;
+    cout << "\t" << blue << 3 << ": " << green << "minimal extension" << reset << endl;
+    cout << "\t" << blue << 4 << ": " << green << "exit program" << reset << endl;
+
+    while (true) {
+        int choice = -1;
+        cout << endl;
+        cout << yellow << "Enter your choice (index of mode): " << reset;
+        cin >> choice;
+
+        if (cin.fail()) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << red << "Invalid input. Please enter a valid number." << reset << endl;
+            continue;
+        }
+
+        if (choice == 4) {
+            cout << magento << "Exiting program... " << reset << endl;
+            break;
+        }
+
+        int graphIndex1, graphIndex2;
+        switch (choice) {
+            case 0:
+                cout << "\t" << "Enter the graph index: " << reset;
+                if (!(cin >> graphIndex1)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                } else if (graphIndex1 < graphs.size()) {
+                    Graph graph = graphs[graphIndex1];
+                    cout << "\t" << "Size of graph " << magento << graph.name << reset
+                        << " is " << green << graph.size() << reset << endl;
+                } else {
+                    cout << red << "\t" << "Wrong graph index!" << reset << endl;
+                }
+                break;
+            case 1:
+                if (graphs.size() < 2) {
+                    cout << red << "\t" << "Calculating distance requires at least 2 graphs!" << reset << endl;
+                    break;
+                }
+                cout << "\t" << "Enter the first graph index: " << reset;
+                if (!(cin >> graphIndex1)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                    break;
+                }
+                cout << "\t" << "Enter the second graph index: " << reset;
+                if (!(cin >> graphIndex2)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                    break;
+                }
+                if (graphIndex1 < graphs.size() && graphIndex2 < graphs.size()) {
+                    Graph graph1 = graphs[graphIndex1];
+                    Graph graph2 = graphs[graphIndex2];
+                    cout << "\t" << "The distance between " << magento << graph1.name << reset << 
+                    " and " << magento << graph2.name << reset << " is " << green << 
+                    graph1.hammingDistance(graph2) << reset << endl;
+                } else {
+                    cout << red << "\t" << "Wrong graph index/indices!" << reset << endl;
+                }
+                break;
+            case 2:
+                cout << "\t" << "Enter the graph index: " << reset;
+                if (!(cin >> graphIndex1)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                    break;
+                }
+
+                if (graphIndex1 < graphs.size()) {
+                    Graph graph = graphs[graphIndex1];
+                    cout << "\t" << "Maximal cycle length of graph " << magento << graph.name << reset 
+                    << " is " << green << graph.maximalCycleLength() << reset << endl;
+                } else {
+                    cout << red << "\t" << "Wrong graph index!" << reset << endl;
+                }
+                break;
+            case 3:
+                cout << "\t" << "Enter the graph index: " << reset;
+                if (!(cin >> graphIndex1)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                    break;
+                }
+
+                if (graphIndex1 < graphs.size()) {
+                    Graph graph = graphs[graphIndex1];
+                    cout << "\t" << "Finding minimal extension of graph " << magento << graph.name << reset << endl;
+                    cout << green << "\t";
+                    graph.minimalExtension();
+                    cout << reset;
+                } else {
+                    cout << red << "\t" << "Wrong graph index!" << reset << endl;
+                }
+                break;
+            default:
+                cout << red << "Invalid choice. Please try again." << reset << endl;
+                break;
+        }
+    }
+
     return 0;
 }
