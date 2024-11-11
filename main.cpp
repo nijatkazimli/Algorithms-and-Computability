@@ -4,6 +4,21 @@
 #include <vector>
 #include <string>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+void enableWindowsANSI() {
+#ifdef _WIN32
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    if (GetConsoleMode(hOut, &dwMode)) {
+        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        SetConsoleMode(hOut, dwMode);
+    }
+#endif
+}
+
 using namespace std;
 namespace fs = filesystem;
 
@@ -148,6 +163,7 @@ void Graph::minimalExtension() {
 }
 
 int main() {
+    enableWindowsANSI();
     vector<Graph> graphs;
 
     for (const auto& entry : filesystem::directory_iterator(fs::current_path())) {
