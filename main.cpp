@@ -4,23 +4,24 @@
 #include <vector>
 #include <string>
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
-void enableWindowsANSI() {
-#ifdef _WIN32
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD dwMode = 0;
-    if (GetConsoleMode(hOut, &dwMode)) {
-        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-        SetConsoleMode(hOut, dwMode);
-    }
-#endif
-}
-
 using namespace std;
 namespace fs = filesystem;
+
+#ifdef _WIN32
+const string red = "";
+const string green = "";
+const string blue = "";
+const string yellow = "";
+const string magenta = "";
+const string reset = "";
+#else
+const string red = "\033[1;31m";
+const string green = "\033[1;32m";
+const string blue = "\033[1;34m";
+const string yellow = "\033[1;33m";
+const string magenta = "\033[38;5;129m";
+const string reset = "\033[0m";
+#endif
 
 class IGraph {
 public:
@@ -163,7 +164,6 @@ void Graph::minimalExtension() {
 }
 
 int main() {
-    enableWindowsANSI();
     vector<Graph> graphs;
 
     for (const auto& entry : filesystem::directory_iterator(fs::current_path())) {
@@ -174,14 +174,7 @@ int main() {
         }
     }
 
-    const string red = "\033[1;31m";
-    const string green = "\033[1;32m";
-    const string blue = "\033[1;34m";
-    const string yellow = "\033[1;33m";
-    const string magento = "\033[38;5;129m";
-    const string reset = "\033[0m";
-
-    cout << magento << "Algorithms and Computability " << reset << endl;
+    cout << magenta << "Algorithms and Computability " << reset << endl;
 
     if (!graphs.empty()) {
         cout << endl;
@@ -216,7 +209,7 @@ int main() {
         }
 
         if (choice == 4) {
-            cout << magento << "Exiting program... " << reset << endl;
+            cout << magenta << "Exiting program... " << reset << endl;
             break;
         }
 
@@ -230,7 +223,7 @@ int main() {
                     cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
                 } else if (graphIndex1 < graphs.size()) {
                     Graph graph = graphs[graphIndex1];
-                    cout << "\t" << "Size of graph " << magento << graph.name << reset
+                    cout << "\t" << "Size of graph " << magenta << graph.name << reset
                         << " is " << green << graph.size() << reset << endl;
                 } else {
                     cout << red << "\t" << "Wrong graph index!" << reset << endl;
@@ -258,8 +251,8 @@ int main() {
                 if (graphIndex1 < graphs.size() && graphIndex2 < graphs.size()) {
                     Graph graph1 = graphs[graphIndex1];
                     Graph graph2 = graphs[graphIndex2];
-                    cout << "\t" << "The distance between " << magento << graph1.name << reset << 
-                    " and " << magento << graph2.name << reset << " is " << green << 
+                    cout << "\t" << "The distance between " << magenta << graph1.name << reset << 
+                    " and " << magenta << graph2.name << reset << " is " << green << 
                     graph1.hammingDistance(graph2) << reset << endl;
                 } else {
                     cout << red << "\t" << "Wrong graph index/indices!" << reset << endl;
@@ -276,7 +269,7 @@ int main() {
 
                 if (graphIndex1 < graphs.size()) {
                     Graph graph = graphs[graphIndex1];
-                    cout << "\t" << "Maximal cycle length of graph " << magento << graph.name << reset 
+                    cout << "\t" << "Maximal cycle length of graph " << magenta << graph.name << reset 
                     << " is " << green << graph.maximalCycleLength() << reset << endl;
                 } else {
                     cout << red << "\t" << "Wrong graph index!" << reset << endl;
@@ -293,7 +286,7 @@ int main() {
 
                 if (graphIndex1 < graphs.size()) {
                     Graph graph = graphs[graphIndex1];
-                    cout << "\t" << "Finding minimal extension of graph " << magento << graph.name << reset << endl;
+                    cout << "\t" << "Finding minimal extension of graph " << magenta << graph.name << reset << endl;
                     cout << green << "\t";
                     graph.minimalExtension();
                     cout << reset;
