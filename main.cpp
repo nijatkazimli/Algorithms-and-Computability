@@ -7,6 +7,10 @@
 using namespace std;
 namespace fs = filesystem;
 
+// Are graphs unidrected?
+// Should we return the size of the maximal cycle (longest Hamiltonian cycle??) or the path itself?
+
+
 #ifdef _WIN32
 const string red = "";
 const string green = "";
@@ -30,6 +34,7 @@ public:
     virtual int hammingDistance(const IGraph& other) const = 0;
     virtual int maximalCycleLength() const = 0;
     virtual void minimalExtension() = 0;
+    virtual void printAdjMatrix() const = 0;
 };
 
 class Graph : public IGraph {
@@ -40,11 +45,12 @@ public:
     int hammingDistance(const IGraph& other) const override;
     int maximalCycleLength() const override;
     void minimalExtension() override;
+    void printAdjMatrix() const override;
 
 private:
     vector<vector<int>> adjMatrix;
 
-    void dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, int start) const;
+    void dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, int start, int parent) const;
     bool isHamiltonianCycle(int pos, vector<bool>& visited, int count, int start) const;
 };
 
@@ -64,8 +70,13 @@ Graph::Graph(const string& filename) {
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
             file >> adjMatrix[i][j];
+            // cout << adjMatrix[i][j];
         }
     }
+
+    cout << n << endl;
+    printAdjMatrix();
+    cout << endl;
 
     file.close();
 }
@@ -97,22 +108,23 @@ int Graph::hammingDistance(const IGraph& other) const {
     return distance;
 }
 
-void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, int start) const {
+void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, int start, int parent) const {
     visited[v] = true;
     path.push_back(v);
 
     for (int u = 0; u < adjMatrix.size(); ++u) {
-        if (adjMatrix[v][u] != 0) {
+        if (adjMatrix[v][u] != 0) {  // There is an edge between v and u
             if (!visited[u]) {
-                dfs(u, visited, path, maxLength, start);
-            } else if (u == start && path.size() > maxLength) {
-                maxLength = path.size();
+                dfs(u, visited, path, maxLength, start, v);  // Continue DFS if u is not visited
+            } else if (u != parent && u == start && path.size() > 1) {
+                // If u is visited and is not the parent, and we are back at the start, then it's a cycle
+                maxLength = maxLength > path.size() ? maxLength : path.size();  // Update the maximal cycle length
             }
         }
     }
 
-    visited[v] = false;
-    path.pop_back();
+    visited[v] = false;  // Unmark the current node after exploring all its neighbors
+    path.pop_back();     // Backtrack
 }
 
 int Graph::maximalCycleLength() const {
@@ -122,7 +134,7 @@ int Graph::maximalCycleLength() const {
     int maxLength = 0;
 
     for (int i = 0; i < n; ++i) {
-        dfs(i, visited, path, maxLength, i);
+        dfs(i, visited, path, maxLength, i, -1);  // Start DFS from each node with no parent (-1)
     }
 
     return maxLength;
@@ -145,23 +157,88 @@ bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int st
     return false;
 }
 
-void Graph::minimalExtension() {
-    int n = adjMatrix.size();
-    for (int u = 0; u < n; ++u) {
-        for (int v = u + 1; v < n; ++v) {
-            if (adjMatrix[u][v] == 0) {
-                adjMatrix[u][v] = adjMatrix[v][u] = 1;
-                vector<bool> visited(n, false);
-                visited[u] = true;
-                if (isHamiltonianCycle(u, visited, 1, u)) {
-                    cout << "Added edge: " << u << " - " << v << " to create a Hamiltonian cycle" << endl;
-                    return;
-                }
-                adjMatrix[u][v] = adjMatrix[v][u] = 0;
-            }
+void Graph::printAdjMatrix() const {
+    for (int i = 0; i < adjMatrix.size(); ++i) {
+        for (int j = 0; j < adjMatrix[i].size(); ++j) {
+            cout << adjMatrix[i][j] << " ";
         }
+        cout << endl;
     }
 }
+
+
+void Graph::minimalExtension() {
+    int n = adjMatrix.size();
+
+    // Check if the graph already has a Hamiltonian cycle
+    vector<bool> visited(n, false);
+    for (int start = 0; start < n; ++start) {
+        visited[start] = true;
+        if (isHamiltonianCycle(start, visited, 1, start)) {
+            cout << "The graph already has a Hamiltonian cycle." << endl;
+            return;
+        }
+        visited[start] = false;
+    }
+
+    // Handle cases where more than one edge might be needed
+    // Use BFS to search for the minimal set of edges to add
+    queue<vector<pair<int, int>>> edgeQueue; // Queue to store edges being added
+    edgeQueue.push({}); // Start with no edges added
+
+    while (!edgeQueue.empty()) {
+        auto currentEdges = edgeQueue.front();
+        edgeQueue.pop();
+
+        // Temporarily add edges from the current set
+        for (const auto& edge : currentEdges) {
+            adjMatrix[edge.first][edge.second] = 1;
+            adjMatrix[edge.second][edge.first] = 1;
+        }
+
+        // Check if a Hamiltonian cycle exists
+        for (int start = 0; start < n; ++start) {
+            fill(visited.begin(), visited.end(), false);
+            visited[start] = true;
+            if (isHamiltonianCycle(start, visited, 1, start)) {
+                // Report the edges added
+                cout << "Added edges to create a Hamiltonian cycle: ";
+                for (const auto& edge : currentEdges) {
+                    cout << magenta << "[ " << green << edge.first << " - " << edge.second << magenta << " ]" << reset << " ";
+                }
+                cout << reset << endl;
+
+                // Restore the graph to its original state before returning
+                for (const auto& edge : currentEdges) {
+                    adjMatrix[edge.first][edge.second] = 0;
+                    adjMatrix[edge.second][edge.first] = 0;
+                }
+                return;
+            }
+        }
+
+        // Generate new edge combinations by adding one more edge
+        for (int u = 0; u < n; ++u) {
+            for (int v = u + 1; v < n; ++v) {
+                if (adjMatrix[u][v] == 0) {
+                    auto newEdges = currentEdges;
+                    newEdges.push_back({u, v});
+                    edgeQueue.push(newEdges);
+                }
+            }
+        }
+
+        // Restore the graph to its original state
+        for (const auto& edge : currentEdges) {
+            adjMatrix[edge.first][edge.second] = 0;
+            adjMatrix[edge.second][edge.first] = 0;
+        }
+    }
+
+    // If no Hamiltonian cycle could be created
+    cout << "Could not create a Hamiltonian cycle even with added edges." << endl;
+}
+
 
 int main() {
     vector<Graph> graphs;
