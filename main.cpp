@@ -3,13 +3,10 @@
 #include <filesystem>
 #include <vector>
 #include <string>
+#include <tuple>
 
 using namespace std;
 namespace fs = filesystem;
-
-// Are graphs unidrected?
-// Should we return the size of the maximal cycle (longest Hamiltonian cycle??) or the path itself?
-
 
 #ifdef _WIN32
 const string red = "";
@@ -30,70 +27,117 @@ const string reset = "\033[0m";
 class IGraph {
 public:
     virtual ~IGraph() = default;
-    virtual int size() const = 0;
+    virtual tuple<int, int> size() const = 0;
     virtual int hammingDistance(const IGraph& other) const = 0;
-    virtual int maximalCycleLength() const = 0;
+    virtual void maximalCycleLength() const = 0;
     virtual void minimalExtension() = 0;
     virtual void printAdjMatrix() const = 0;
+    virtual bool checkIfDirected() const = 0;
 };
 
 class Graph : public IGraph {
 public:
     Graph(const string& filename);
     string name;
-    int size() const override;
+    bool isDirected;
+    tuple<int, int> size() const override;
     int hammingDistance(const IGraph& other) const override;
-    int maximalCycleLength() const override;
+    void maximalCycleLength() const override;
     void minimalExtension() override;
     void printAdjMatrix() const override;
 
 private:
     vector<vector<int>> adjMatrix;
+    int vertices;
 
-    void dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, int start, int parent) const;
+    void dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, vector<vector<int>>& maxCycles, int start) const;
     bool isHamiltonianCycle(int pos, vector<bool>& visited, int count, int start) const;
+    bool checkIfDirected() const override;
 };
 
 Graph::Graph(const string& filename) {
     ifstream file(filename);
     if (!file.is_open()) {
-        cerr << "Unable to open file" << endl;
-        exit(1);
+        cerr << "Error: Unable to open file " << filename << endl;
+        exit(EXIT_FAILURE);
     }
 
     name = filename;
 
-    int n;
-    file >> n;
-    adjMatrix.resize(n, vector<int>(n));
+    if (!(file >> vertices) || vertices <= 0) {
+        cerr << "Error: Invalid number of vertices in file." << endl;
+        file.close();
+        exit(EXIT_FAILURE);
+    }
 
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            file >> adjMatrix[i][j];
-            // cout << adjMatrix[i][j];
+    adjMatrix.resize(vertices, vector<int>(vertices));
+    for (int i = 0; i < vertices; ++i) {
+        for (int j = 0; j < vertices; ++j) {
+            if (!(file >> adjMatrix[i][j])) {
+                cerr << "Error: Insufficient or invalid data in adjacency matrix." << endl;
+                file.close();
+                exit(EXIT_FAILURE);
+            }
         }
     }
 
-    cout << n << endl;
-    printAdjMatrix();
-    cout << endl;
+    isDirected = checkIfDirected();
 
     file.close();
 }
 
-int Graph::size() const {
-    int size = 0;
-    int n = adjMatrix.size();
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
-            if (adjMatrix[i][j] != 0) {
-                size++;
+bool Graph::checkIfDirected() const {
+    for (int i = 0; i < vertices; ++i) {
+        for (int j = 0; j < vertices; ++j) {
+            if (adjMatrix[i][j] != adjMatrix[j][i]) {
+                return true;
             }
         }
     }
-    return size;
+    return false;
 }
 
+void Graph::printAdjMatrix() const {
+    cout << "Adjacency Matrix:" << endl;
+    for (const auto& row : adjMatrix) {
+        for (const auto& value : row) {
+            cout << value << " ";
+        }
+        cout << endl;
+    }
+}
+
+// edge + vertices
+tuple<int, int> Graph::size() const {
+    int edges = 0;
+    int n = adjMatrix.size();
+
+    if (isDirected) {
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                if (adjMatrix[i][j] != 0) {
+                    edges++;
+                }
+            }
+        }
+    } else {
+        for (int i = 0; i < n; ++i) {
+            for (int j = i + 1; j < n; ++j) {
+                if (adjMatrix[i][j] != 0) {
+                    edges++;
+                }
+            }
+        }
+    }
+
+    return make_tuple(edges, vertices);
+}
+
+
+// how about isomorphic graphs
+
+// for exact consider all permutations
+// consider subsets for differring number of vertices
 int Graph::hammingDistance(const IGraph& other) const {
     const Graph& otherGraph = dynamic_cast<const Graph&>(other);
     int distance = 0;
@@ -108,36 +152,56 @@ int Graph::hammingDistance(const IGraph& other) const {
     return distance;
 }
 
-void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, int start, int parent) const {
+void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, vector<vector<int>>& maxCycles, int start) const {
     visited[v] = true;
     path.push_back(v);
 
     for (int u = 0; u < adjMatrix.size(); ++u) {
         if (adjMatrix[v][u] != 0) {  // There is an edge between v and u
             if (!visited[u]) {
-                dfs(u, visited, path, maxLength, start, v);  // Continue DFS if u is not visited
-            } else if (u != parent && u == start && path.size() > 1) {
-                // If u is visited and is not the parent, and we are back at the start, then it's a cycle
-                maxLength = maxLength > path.size() ? maxLength : path.size();  // Update the maximal cycle length
+                dfs(u, visited, path, maxLength, maxCycles, start);
+            } else if (u == start && path.size() > 2) {
+                // A cycle is detected (back to the start)
+                if (path.size() > maxLength) {
+                    maxLength = path.size();
+                    maxCycles.clear();
+                }
+                if (path.size() == maxLength) {
+                    maxCycles.push_back(path);
+                }
             }
         }
     }
 
-    visited[v] = false;  // Unmark the current node after exploring all its neighbors
-    path.pop_back();     // Backtrack
+    visited[v] = false;
+    path.pop_back();
 }
 
-int Graph::maximalCycleLength() const {
+void Graph::maximalCycleLength() const {
     int n = adjMatrix.size();
     vector<bool> visited(n, false);
     vector<int> path;
     int maxLength = 0;
+    vector<vector<int>> maxCycles;
 
     for (int i = 0; i < n; ++i) {
-        dfs(i, visited, path, maxLength, i, -1);  // Start DFS from each node with no parent (-1)
+        dfs(i, visited, path, maxLength, maxCycles, i);
     }
 
-    return maxLength;
+    if (maxLength == 0) {
+        cout << red << "NO CYCLES FOUND!" << reset;
+        return;
+    }
+
+    cout << maxLength << ". There exist(s) " << maxCycles.size() << " of them." << endl << endl;
+    cout << "\t" << blue << "Cycle path(s):" << green << endl;
+    for (const auto& cycle : maxCycles) {
+        cout << "\t";
+        for (int v : cycle) {
+            cout << v << " ";
+        }
+        cout << cycle[0] << endl;
+    }
 }
 
 bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int start) const {
@@ -157,16 +221,9 @@ bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int st
     return false;
 }
 
-void Graph::printAdjMatrix() const {
-    for (int i = 0; i < adjMatrix.size(); ++i) {
-        for (int j = 0; j < adjMatrix[i].size(); ++j) {
-            cout << adjMatrix[i][j] << " ";
-        }
-        cout << endl;
-    }
-}
-
-
+// Hamiltonian!!
+// assume connectivity
+// I should print the edges
 void Graph::minimalExtension() {
     int n = adjMatrix.size();
 
@@ -257,7 +314,8 @@ int main() {
         cout << endl;
         cout << yellow << "Graph files found in current directory:\n" << reset;
         for (size_t i = 0; i < graphs.size(); ++i) {
-            cout << "\t" << blue << i << ": " << green << graphs[i].name << reset << endl;
+            cout << "\t" << blue << i << ": " << green << graphs[i].name << reset << " - " 
+            << yellow << (graphs[i].isDirected ? "directed" : "undirected") << reset << endl;
         }
     } else {
         cout << red << "No .txt files found in the current directory." << reset << endl;
@@ -266,7 +324,7 @@ int main() {
 
     cout << endl;
     cout << yellow << "Program modes:" << reset << endl;
-    cout << "\t" << blue << 0 << ": " << green << "size of graph" << reset << endl;
+    cout << "\t" << blue << 0 << ": " << green << "size of graph " << magenta << "(# of edges + vertices)" << reset << endl;
     cout << "\t" << blue << 1 << ": " << green << "hamming distance" << reset << endl;
     cout << "\t" << blue << 2 << ": " << green << "maximal cycle length" << reset << endl;
     cout << "\t" << blue << 3 << ": " << green << "minimal extension" << reset << endl;
@@ -300,8 +358,9 @@ int main() {
                     cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
                 } else if (graphIndex1 < graphs.size()) {
                     Graph graph = graphs[graphIndex1];
+                    auto [edges, vertices] = graph.size();
                     cout << "\t" << "Size of graph " << magenta << graph.name << reset
-                        << " is " << green << graph.size() << reset << endl;
+                        << " is " << green << edges << " + " << vertices << " = " << edges + vertices << reset << endl;
                 } else {
                     cout << red << "\t" << "Wrong graph index!" << reset << endl;
                 }
@@ -347,7 +406,9 @@ int main() {
                 if (graphIndex1 < graphs.size()) {
                     Graph graph = graphs[graphIndex1];
                     cout << "\t" << "Maximal cycle length of graph " << magenta << graph.name << reset 
-                    << " is " << green << graph.maximalCycleLength() << reset << endl;
+                    << " is " << green;
+                    graph.maximalCycleLength();
+                    cout << reset << endl;
                 } else {
                     cout << red << "\t" << "Wrong graph index!" << reset << endl;
                 }
