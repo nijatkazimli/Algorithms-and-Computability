@@ -29,6 +29,7 @@ public:
     virtual ~IGraph() = default;
     virtual tuple<int, int> size() const = 0;
     virtual int hammingDistance(const IGraph& other) const = 0;
+    virtual int hammingDistanceExact(const IGraph& other) const = 0;
     virtual void maximalCycleLength() const = 0;
     virtual void minimalExtension() = 0;
     virtual void printAdjMatrix() const = 0;
@@ -42,6 +43,7 @@ public:
     bool isDirected;
     tuple<int, int> size() const override;
     int hammingDistance(const IGraph& other) const override;
+    int hammingDistanceExact(const IGraph& other) const override;
     void maximalCycleLength() const override;
     void minimalExtension() override;
     void printAdjMatrix() const override;
@@ -133,10 +135,6 @@ tuple<int, int> Graph::size() const {
     return make_tuple(edges, vertices);
 }
 
-
-// how about isomorphic graphs
-
-// for exact consider all permutations
 // consider subsets for differring number of vertices
 int Graph::hammingDistance(const IGraph& other) const {
     const Graph& otherGraph = dynamic_cast<const Graph&>(other);
@@ -151,6 +149,24 @@ int Graph::hammingDistance(const IGraph& other) const {
     }
     return distance;
 }
+
+// placeholder
+// how about isomorphic graphs
+// for exact consider all permutations
+int Graph::hammingDistanceExact(const IGraph& other) const {
+    const Graph& otherGraph = dynamic_cast<const Graph&>(other);
+    int distance = 0;
+    int n = adjMatrix.size();
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            if (adjMatrix[i][j] != otherGraph.adjMatrix[i][j]) {
+                distance++;
+            }
+        }
+    }
+    return distance;
+}
+
 
 void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, vector<vector<int>>& maxCycles, int start) const {
     visited[v] = true;
@@ -224,6 +240,7 @@ bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int st
 // Hamiltonian!!
 // assume connectivity
 // I should print the edges
+// DOES NOT WORK WITH DIRECTED
 void Graph::minimalExtension() {
     int n = adjMatrix.size();
 
