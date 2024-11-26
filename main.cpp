@@ -1,4 +1,4 @@
-#include <iostream>
+#include<iostream>
 #include <fstream>
 #include <filesystem>
 #include <vector>
@@ -168,6 +168,7 @@ int Graph::hammingDistanceExact(const IGraph& other) const {
     return distance;
 }
 
+
 void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, vector<vector<int>>& maxCycles, int start) const {
     visited[v] = true;
     path.push_back(v);
@@ -194,7 +195,6 @@ void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength,
 }
 
 void Graph::maximalCycleLength() const {
-    
     int n = adjMatrix.size();
     vector<bool> visited(n, false);
     vector<int> path;
@@ -202,7 +202,6 @@ void Graph::maximalCycleLength() const {
     vector<vector<int>> maxCycles;
     vector<vector<int>> uniqueCycles; // To store unique maximal cycles
     
-    // Perform DFS to find cycles
     for (int i = 0; i < n; ++i) {
         dfs(i, visited, path, maxLength, maxCycles, i);
     }
@@ -212,13 +211,11 @@ void Graph::maximalCycleLength() const {
         return;
     }
 
-    // Loop through all found cycles of the maximal length
-    cout << maxLength << ". There exist(s) " << maxCycles.size() << " cycle(s) of maximal length." << endl << endl;
+    cout << maxLength << "." << endl << endl;
+    // cout << "There exist(s) " << maxCycles.size() << " cycle(s) of maximal length." << endl << endl;    // maxCycles.size() doesn't output the correct number 
 
     if (isDirected) {
         cout << "\t" << blue << "Cycle path(s):" << green << endl;
-
-        bool isDirected = checkIfDirected(); // Use the checkIfDirected function to determine graph type
 
         for (const auto& cycle : maxCycles) {
             // Normalize the cycle to always start from the smallest vertex
@@ -260,7 +257,10 @@ void Graph::maximalCycleLength() const {
 
         if (uniqueCycles.empty()) {
             cout << red << "No unique cycles found!" << reset << endl;
+        } else {
+            cout << "\n\t" << "Number of cycles of maximal length is " << uniqueCycles.size() << "." << endl;
         }
+
     } else {
         // Function to count cycles of a specific length
         auto countCyclesOfLength = [&](int cycleLength) -> int {
@@ -301,12 +301,9 @@ void Graph::maximalCycleLength() const {
             return count / 2; // Each cycle is counted twice in undirected graphs
         };
 
-        // Count the cycles of maximal length
         int maxCycleCount = countCyclesOfLength(maxLength);
 
-        // Output results
-        cout << "Maximal cycle length: " << maxLength << endl;
-        cout << "Number of cycles of maximal length: " << maxCycleCount << endl;
+        cout << "\t" << "Number of cycles of maximal length is " << maxCycleCount << "." << endl;
     }
 }
 
