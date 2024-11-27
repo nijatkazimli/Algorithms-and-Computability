@@ -31,7 +31,6 @@ public:
     virtual int hammingDistance(const IGraph& other) const = 0;
     virtual int hammingDistanceExact(const IGraph& other) const = 0;
     virtual void maximalCycleLength() const = 0;
-    virtual void maximalCycleLength2() const = 0;
     virtual void minimalExtension() = 0;
     virtual void printAdjMatrix() const = 0;
     virtual bool checkIfDirected() const = 0;
@@ -46,7 +45,6 @@ public:
     int hammingDistance(const IGraph& other) const override;
     int hammingDistanceExact(const IGraph& other) const override;
     void maximalCycleLength() const override;
-    void maximalCycleLength2() const override;
     void minimalExtension() override;
     void printAdjMatrix() const override;
 
@@ -193,119 +191,6 @@ void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength,
 
     visited[v] = false;
     path.pop_back();
-}
-
-void Graph::maximalCycleLength2() const {
-    int n = adjMatrix.size();
-    vector<bool> visited(n, false);
-    vector<int> path;
-    int maxLength = 0;
-    vector<vector<int>> maxCycles;
-    vector<vector<int>> uniqueCycles; // To store unique maximal cycles
-    
-    for (int i = 0; i < n; ++i) {
-        dfs(i, visited, path, maxLength, maxCycles, i);
-    }
-
-    if (maxLength == 0) {
-        cout << red << "NO CYCLES FOUND!" << reset;
-        return;
-    }
-
-    cout << maxLength << "." << endl << endl;
-    // cout << "There exist(s) " << maxCycles.size() << " cycle(s) of maximal length." << endl << endl;    // maxCycles.size() doesn't output the correct number 
-
-    if (isDirected) {
-        cout << "\t" << blue << "Cycle path(s):" << green << endl;
-
-        for (const auto& cycle : maxCycles) {
-            // Normalize the cycle to always start from the smallest vertex
-            vector<int> normalizedCycle = cycle;
-            int minVertex = *min_element(cycle.begin(), cycle.end());
-
-            // Rotate the cycle so that it starts from the minimum vertex
-            while (normalizedCycle.front() != minVertex) {
-                rotate(normalizedCycle.begin(), normalizedCycle.begin() + 1, normalizedCycle.end());
-            }
-
-        
-            // For directed graphs, check both clockwise and counterclockwise versions
-            vector<int> clockwiseCycle = normalizedCycle;
-            vector<int> counterClockwiseCycle = normalizedCycle;
-            reverse(counterClockwiseCycle.begin(), counterClockwiseCycle.end());
-
-            // Choose the lexicographically smaller cycle (clockwise vs counterclockwise)
-            vector<int> smallestCycle = (clockwiseCycle < counterClockwiseCycle) ? clockwiseCycle : counterClockwiseCycle;
-
-            // Ensure uniqueness of cycles
-            bool isDuplicate = false;
-            for (const auto& existingCycle : uniqueCycles) {
-                if (existingCycle == smallestCycle) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-
-            if (!isDuplicate) {
-                uniqueCycles.push_back(smallestCycle);
-                cout << "\t";
-                for (int v : smallestCycle) {
-                    cout << v << " ";
-                }
-                cout << smallestCycle[0] << endl;
-            }
-        } 
-
-        if (uniqueCycles.empty()) {
-            cout << red << "No unique cycles found!" << reset << endl;
-        } else {
-            cout << "\n\t" << "Number of cycles of maximal length is " << uniqueCycles.size() << "." << endl;
-        }
-
-    } else {
-        // Function to count cycles of a specific length
-        auto countCyclesOfLength = [&](int cycleLength) -> int {
-            vector<bool> marked(n, false);
-            int count = 0;
-
-            // Lambda for DFS to count cycles of a specific length
-            auto countDFS = [&](int vert, int start, int remaining, auto&& countDFSRef) -> void {
-                marked[vert] = true;
-
-                // If the path is complete, check if it forms a cycle
-                if (remaining == 0) {
-                    marked[vert] = false;
-                    if (adjMatrix[vert][start]) {
-                        count++;
-                    }
-                    return;
-                }
-
-                // Explore all neighbors
-                for (int next = 0; next < n; ++next) {
-                    if (!marked[next] && adjMatrix[vert][next]) {
-                        countDFSRef(next, start, remaining - 1, countDFSRef);
-                    }
-                }
-
-                marked[vert] = false;
-            };
-
-            // Start DFS from each vertex
-            for (int i = 0; i < n - (cycleLength - 1); ++i) {
-                countDFS(i, i, cycleLength - 1, countDFS);
-
-                // Mark the starting vertex as visited for this length
-                marked[i] = true;
-            }
-
-            return count / 2; // Each cycle is counted twice in undirected graphs
-        };
-
-        int maxCycleCount = countCyclesOfLength(maxLength);
-
-        cout << "\t" << "Number of cycles of maximal length is " << maxCycleCount << "." << endl;
-    }
 }
 
 void Graph::maximalCycleLength() const {
