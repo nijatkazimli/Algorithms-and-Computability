@@ -31,6 +31,7 @@ public:
     virtual int hammingDistance(const IGraph& other) const = 0;
     virtual int hammingDistanceExact(const IGraph& other) const = 0;
     virtual void maximalCycleLength() const = 0;
+    virtual void maximalCycleLength2() const = 0;
     virtual void minimalExtension() = 0;
     virtual void printAdjMatrix() const = 0;
     virtual bool checkIfDirected() const = 0;
@@ -45,6 +46,7 @@ public:
     int hammingDistance(const IGraph& other) const override;
     int hammingDistanceExact(const IGraph& other) const override;
     void maximalCycleLength() const override;
+    void maximalCycleLength2() const override;
     void minimalExtension() override;
     void printAdjMatrix() const override;
 
@@ -193,7 +195,7 @@ void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength,
     path.pop_back();
 }
 
-void Graph::maximalCycleLength() const {
+void Graph::maximalCycleLength2() const {
     int n = adjMatrix.size();
     vector<bool> visited(n, false);
     vector<int> path;
@@ -303,6 +305,119 @@ void Graph::maximalCycleLength() const {
         int maxCycleCount = countCyclesOfLength(maxLength);
 
         cout << "\t" << "Number of cycles of maximal length is " << maxCycleCount << "." << endl;
+    }
+}
+
+void Graph::maximalCycleLength() const {
+    int n = adjMatrix.size();
+    vector<bool> visited(n, false);
+    vector<int> path;
+    int maxLength = 0;
+    vector<vector<int>> maxCycles;
+    vector<vector<int>> uniqueCycles; // To store unique maximal cycles
+
+    for (int i = 0; i < n; ++i) {
+        dfs(i, visited, path, maxLength, maxCycles, i);
+    }
+
+    if (maxLength == 0) {
+        cout << red << "NO CYCLES FOUND!" << reset;
+        return;
+    }
+
+    cout << maxLength << "." << endl << endl;
+    // cout << "There exist(s) " << maxCycles.size() << " cycle(s) of maximal length." << endl << endl;    // maxCycles.size() doesn't output the correct number 
+    cout << "\t" << blue << "Cycle path(s):" << green << endl;
+
+    vector<vector<int>> savedCycles;
+    int undirectedCounter = 0;
+
+    for (const auto& cycle : maxCycles) {
+        // Normalize the cycle to always start from the smallest vertex
+        vector<int> normalizedCycle = cycle;
+        int minVertex = *min_element(cycle.begin(), cycle.end());
+
+        // Rotate the cycle so that it starts from the minimum vertex
+        while (normalizedCycle.front() != minVertex) {
+            rotate(normalizedCycle.begin(), normalizedCycle.begin() + 1, normalizedCycle.end());
+        }
+
+        if (isDirected) {
+            // For directed graphs, check both clockwise and counterclockwise versions
+            vector<int> clockwiseCycle = normalizedCycle;
+            vector<int> counterClockwiseCycle = normalizedCycle;
+            reverse(counterClockwiseCycle.begin(), counterClockwiseCycle.end());
+
+            // Choose the lexicographically smaller cycle (clockwise vs counterclockwise)
+            vector<int> smallestCycle = (clockwiseCycle < counterClockwiseCycle) ? clockwiseCycle : counterClockwiseCycle;
+
+            // Ensure uniqueness of cycles
+            bool isDuplicate = false;
+            for (const auto& existingCycle : uniqueCycles) {
+                if (existingCycle == smallestCycle) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+
+            if (!isDuplicate) {
+                uniqueCycles.push_back(smallestCycle);
+                cout << "\t";
+                for (int v : smallestCycle) {
+                    cout << v << " ";
+                }
+                cout << smallestCycle[0] << endl;
+            }
+        } else {
+            // For undirected graphs, we only store the normalized version of the cycle if its reversed version doesn't exist
+            vector<int> counterClockwiseCycle = normalizedCycle;
+            reverse(counterClockwiseCycle.begin(), counterClockwiseCycle.end());
+
+            // Check if either the normalized cycle or its reversed version is already stored
+            bool isDuplicate = false;
+            for (const auto& existingCycle : uniqueCycles) {
+                if (existingCycle == normalizedCycle || existingCycle == counterClockwiseCycle) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+
+            if (!isDuplicate) {
+                uniqueCycles.push_back(normalizedCycle);
+                savedCycles.push_back(normalizedCycle); // Save to the container
+            }
+        }
+    }
+
+    int undirectedSize = uniqueCycles.size() / 2;
+
+    if (!isDirected && !savedCycles.empty()) {
+        for (const auto& cycle : savedCycles) {
+            cout << "\t";
+            for (int v : cycle) {
+                cout << v << " ";  
+            }
+            cout << cycle[0] << endl;  
+
+            undirectedCounter++;
+
+            if (undirectedCounter == undirectedSize) {
+                break; 
+            }
+        } 
+    }
+
+    if (uniqueCycles.empty()) {
+        cout << red << "No unique cycles found!" << reset << endl;
+    } else {
+        cout << "\n\t" << "Number of cycles of maximal length is ";
+
+        if(isDirected) {
+            cout << uniqueCycles.size();
+        } else {
+            cout << uniqueCycles.size() / 2;
+        } 
+        cout << "." << endl;
     }
 }
 
