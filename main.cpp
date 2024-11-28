@@ -4,6 +4,9 @@
 #include <vector>
 #include <string>
 #include <tuple>
+#include <algorithm>
+#include <numeric>
+#include <set>
 
 using namespace std;
 namespace fs = filesystem;
@@ -29,6 +32,7 @@ public:
     virtual ~IGraph() = default;
     virtual tuple<int, int> size() const = 0;
     virtual int hammingDistance(const IGraph& other) const = 0;
+    virtual vector<int> hammingDistances(const IGraph& other) const = 0;
     virtual int hammingDistanceExact(const IGraph& other) const = 0;
     virtual void maximalCycleLength() const = 0;
     virtual void minimalExtension() = 0;
@@ -39,10 +43,12 @@ public:
 class Graph : public IGraph {
 public:
     Graph(const string& filename);
+    Graph(int n, const vector<vector<int>> adjMatrix);
     string name;
     bool isDirected;
     tuple<int, int> size() const override;
     int hammingDistance(const IGraph& other) const override;
+    vector<int> hammingDistances(const IGraph& other) const override;
     int hammingDistanceExact(const IGraph& other) const override;
     void maximalCycleLength() const override;
     void minimalExtension() override;
@@ -88,6 +94,18 @@ Graph::Graph(const string& filename) {
     file.close();
 }
 
+Graph::Graph(int n, const vector<vector<int>> manualAdjMatrix) {
+  name = "manual";
+  vertices = n;
+  adjMatrix.resize(n, vector<int>(n));
+  for (int i = 0; i < vertices; ++i) {
+    for (int j = 0; j < vertices; ++j) {
+        adjMatrix[i][j] = manualAdjMatrix[i][j];
+    }
+  }
+  isDirected = checkIfDirected();
+}
+
 bool Graph::checkIfDirected() const {
     for (int i = 0; i < vertices; ++i) {
         for (int j = 0; j < vertices; ++j) {
@@ -107,6 +125,17 @@ void Graph::printAdjMatrix() const {
         }
         cout << endl;
     }
+}
+
+void printAdjMat(const vector<vector<int>>& mat) {
+    for (const auto& row : mat) {
+        cout << "\t";
+        for (const auto& value : row) {
+            cout << value << " ";
+        }
+        cout << endl;
+    }
+    cout << endl;
 }
 
 // edge + vertices
@@ -140,14 +169,91 @@ int Graph::hammingDistance(const IGraph& other) const {
     const Graph& otherGraph = dynamic_cast<const Graph&>(other);
     int distance = 0;
     int n = adjMatrix.size();
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            if (adjMatrix[i][j] != otherGraph.adjMatrix[i][j]) {
-                distance++;
+    if (n == otherGraph.vertices) {
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                if (adjMatrix[i][j] != otherGraph.adjMatrix[i][j]) {
+                    distance++;
+                }
             }
         }
     }
     return distance;
+}
+
+std::vector<int> Graph::hammingDistances(const IGraph& other) const {
+    const Graph& otherGraph = dynamic_cast<const Graph&>(other);
+    int m = otherGraph.adjMatrix.size();
+    int n = adjMatrix.size();
+
+    // Determine which graph is larger
+    const Graph* largerGraph = (n >= m) ? this : &otherGraph;
+    const Graph* smallerGraph = (n >= m) ? &otherGraph : this;
+
+    int largerSize = largerGraph->adjMatrix.size();
+    int smallerSize = smallerGraph->adjMatrix.size();
+
+    vector<int> distances; // Vector to store Hamming distances
+    vector<vector<vector<int>>> subsets; // Vector to store subsets
+    set<vector<vector<int>>> uniqueMatrices;
+
+    // Generate all subsets of size 'smallerSize' from [0, largerSize-1]
+    vector<int> indices(largerSize);
+    iota(indices.begin(), indices.end(), 0); // [0, 1, ..., largerSize-1]
+    vector<bool> selectSubset(smallerSize, true); // First 'smallerSize' elements set to true
+    selectSubset.resize(largerSize, false);           // Rest set to false
+
+    do {
+        // Extract subset indices
+        vector<int> subsetIndices;
+        for (int i = 0; i < largerSize; ++i) {
+            if (selectSubset[i]) subsetIndices.push_back(i);
+        }
+
+        // Create induced subgraph for the selected subset
+        vector<vector<int>> inducedMatrix(smallerSize, vector<int>(smallerSize, 0));
+        for (int i = 0; i < smallerSize; ++i) {
+            for (int j = 0; j < smallerSize; ++j) {
+                inducedMatrix[i][j] = largerGraph->adjMatrix[subsetIndices[i]][subsetIndices[j]];
+            }
+        }
+
+        if (uniqueMatrices.count(inducedMatrix) > 0) {
+            continue;
+        }
+        uniqueMatrices.insert(inducedMatrix);
+
+        // Calculate Hamming distance with the smaller graph
+        int distance = 0;
+        for (int i = 0; i < smallerSize; ++i) {
+            for (int j = 0; j < smallerSize; ++j) {
+                if (inducedMatrix[i][j] != smallerGraph->adjMatrix[i][j]) {
+                    distance++;
+                }
+            }
+        }
+
+        distances.push_back(distance);
+        subsets.push_back(inducedMatrix);
+
+    } while (prev_permutation(selectSubset.begin(), selectSubset.end()));
+
+    if (m == n) {
+        cout << "\t" << "The hamming distance between the graphs is " << green << distances.at(0) << reset << endl;  
+    } else {
+        auto minIt = std::min_element(distances.begin(), distances.end());
+        cout << "\t" << "Sizes of the graphs differ. So, comparing the smaller graph with the subsets of the bigger one." << endl;
+        cout << "\t" << "There exists " << green << subsets.size() << " subsets" << reset << ", hence that many hamming distances" << 
+        " with the smallest one being " << green << *minIt << reset << "." << endl << endl;
+        for (int i = 0; i < distances.size(); i++) {
+            cout << "\t" << i + 1 << ")" << endl;
+            cout << "\t" << "Distance: " << green << distances.at(i) << reset << endl;
+            cout << "\t" << "Subset: " << endl;
+            printAdjMat(subsets.at(i));
+        }
+    }
+
+    return distances;
 }
 
 // placeholder
@@ -490,9 +596,10 @@ int main() {
                 if (graphIndex1 < graphs.size() && graphIndex2 < graphs.size()) {
                     Graph graph1 = graphs[graphIndex1];
                     Graph graph2 = graphs[graphIndex2];
-                    cout << "\t" << "The distance between " << magenta << graph1.name << reset << 
-                    " and " << magenta << graph2.name << reset << " is " << green << 
-                    graph1.hammingDistance(graph2) << reset << endl;
+                    // cout << "\t" << "The distance between " << magenta << graph1.name << reset << 
+                    // " and " << magenta << graph2.name << reset << " is " << green << 
+                    // graph1.hammingDistance(graph2) << reset << endl;
+                    graph1.hammingDistances(graph2);
                 } else {
                     cout << red << "\t" << "Wrong graph index/indices!" << reset << endl;
                 }
