@@ -176,7 +176,7 @@ void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength,
         if (adjMatrix[v][u] != 0) {  // There is an edge between v and u
             if (!visited[u]) {
                 dfs(u, visited, path, maxLength, maxCycles, start);
-            } else if (u == start && path.size() > 2) {
+            } else if (u == start && path.size() >= 2) {
                 // A cycle is detected (back to the start)
                 if (path.size() > maxLength) {
                     maxLength = path.size();
