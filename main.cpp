@@ -243,6 +243,7 @@ bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int st
 // DOES NOT WORK WITH DIRECTED
 void Graph::minimalExtension() {
     int n = adjMatrix.size();
+    bool isDirected = checkIfDirected(); //determine if the graph is directed
 
     // Check if the graph already has a Hamiltonian cycle
     vector<bool> visited(n, false);
@@ -257,6 +258,10 @@ void Graph::minimalExtension() {
 
     // Handle cases where more than one edge might be needed
     // Use BFS to search for the minimal set of edges to add
+
+    // added the case for directed graphs
+    // seems to work... not thoroughly tested though!
+
     queue<vector<pair<int, int>>> edgeQueue; // Queue to store edges being added
     edgeQueue.push({}); // Start with no edges added
 
@@ -267,7 +272,9 @@ void Graph::minimalExtension() {
         // Temporarily add edges from the current set
         for (const auto& edge : currentEdges) {
             adjMatrix[edge.first][edge.second] = 1;
-            adjMatrix[edge.second][edge.first] = 1;
+            if (!isDirected) {
+                adjMatrix[edge.second][edge.first] = 1; // for undirected graph
+            }
         }
 
         // Check if a Hamiltonian cycle exists
@@ -278,14 +285,21 @@ void Graph::minimalExtension() {
                 // Report the edges added
                 cout << "Added edges to create a Hamiltonian cycle: ";
                 for (const auto& edge : currentEdges) {
-                    cout << magenta << "[ " << green << edge.first << " - " << edge.second << magenta << " ]" << reset << " ";
+                    if(isDirected){
+                        cout << magenta << "[ " << green << edge.first << " -> " << edge.second << magenta << " ]" << reset << " ";
+                    }
+                    else{
+                        cout << magenta << "[ " << green << edge.first << " - " << edge.second << magenta << " ]" << reset << " ";
+                    }
                 }
                 cout << reset << endl;
 
                 // Restore the graph to its original state before returning
                 for (const auto& edge : currentEdges) {
                     adjMatrix[edge.first][edge.second] = 0;
-                    adjMatrix[edge.second][edge.first] = 0;
+                    if (!isDirected) {
+                        adjMatrix[edge.second][edge.first] = 0; // for undirected graphs
+                    }
                 }
                 return;
             }
@@ -293,8 +307,8 @@ void Graph::minimalExtension() {
 
         // Generate new edge combinations by adding one more edge
         for (int u = 0; u < n; ++u) {
-            for (int v = u + 1; v < n; ++v) {
-                if (adjMatrix[u][v] == 0) {
+            for (int v = 0; v < n; ++v) { // v starts from 0 since (u, v) ≠ (v, u) and both need be checked
+                if (u != v && adjMatrix[u][v] == 0) {
                     auto newEdges = currentEdges;
                     newEdges.push_back({u, v});
                     edgeQueue.push(newEdges);
@@ -305,7 +319,9 @@ void Graph::minimalExtension() {
         // Restore the graph to its original state
         for (const auto& edge : currentEdges) {
             adjMatrix[edge.first][edge.second] = 0;
-            adjMatrix[edge.second][edge.first] = 0;
+            if (!isDirected) {
+                adjMatrix[edge.second][edge.first] = 0; // for undirected graphs
+            }
         }
     }
 
