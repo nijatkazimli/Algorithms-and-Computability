@@ -534,10 +534,10 @@ void Graph::minimalExtension() {
                 // Report the edges added
                 cout << "Added edges to create a Hamiltonian cycle: ";
                 for (const auto& edge : currentEdges) {
-                    if(isDirected){
+                    if (isDirected) {
                         cout << magenta << "[ " << green << edge.first << " -> " << edge.second << magenta << " ]" << reset << " ";
                     }
-                    else{
+                    else {
                         cout << magenta << "[ " << green << edge.first << " - " << edge.second << magenta << " ]" << reset << " ";
                     }
                 }
