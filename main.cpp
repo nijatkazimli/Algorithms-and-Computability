@@ -35,6 +35,7 @@ public:
     virtual vector<int> hammingDistanceExact(const IGraph& other) const = 0;
     virtual void maximalCycleLength() const = 0;
     virtual void minimalExtension() = 0;
+    virtual void minimalExtensionHeuristic() = 0;
     virtual void printAdjMatrix() const = 0;
     virtual bool checkIfDirected() const = 0;
 };
@@ -50,6 +51,7 @@ public:
     vector<int> hammingDistanceExact(const IGraph& other) const override;
     void maximalCycleLength() const override;
     void minimalExtension() override;
+    void minimalExtensionHeuristic() override;
     void printAdjMatrix() const override;
 
 private:
@@ -469,6 +471,7 @@ void Graph::maximalCycleLength() const {
     }
 }
 
+// I think, O(V!) complexity
 bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int start) const {
     if (count == adjMatrix.size()) {
         return adjMatrix[pos][start] != 0;
@@ -578,6 +581,99 @@ void Graph::minimalExtension() {
     cout << "Could not create a Hamiltonian cycle even with added edges." << endl;
 }
 
+// adds edges between the least degree vertices
+// until it finds hamiltonian cyle
+// does not check if just one added edge caused this or all
+// so might add unnecessary edges
+// but we can keep it for heuristic solution.
+void Graph::minimalExtensionHeuristic() {
+    int n = adjMatrix.size();
+    bool isDirected = checkIfDirected(); // Determine if the graph is directed
+
+    // Check if the graph already has a Hamiltonian cycle
+    vector<bool> visited(n, false);
+    for (int start = 0; start < n; ++start) {
+        visited[start] = true;
+        if (isHamiltonianCycle(start, visited, 1, start)) {
+            cout << "The graph already has a Hamiltonian cycle." << endl;
+            return;
+        }
+        visited[start] = false;
+    }
+
+    // Calculate degrees of all vertices
+    vector<int> degree(n, 0);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            if (adjMatrix[i][j] != 0) {
+                degree[i]++;
+            }
+        }
+    }
+
+    vector<pair<int, int>> addedEdges; // Store added edges for reporting
+
+    // Iteratively add edges based on the heuristic
+    while (true) {
+        int minDegreeU = INT_MAX, minDegreeV = INT_MAX;
+        int u = -1, v = -1;
+
+        // Find the best edge to add based on vertex degrees
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                if (i != j && adjMatrix[i][j] == 0) {
+                    // Heuristic: Prefer edge connecting vertices with the smallest degrees
+                    if (degree[i] < minDegreeU || 
+                        (degree[i] == minDegreeU && degree[j] < minDegreeV)) {
+                        minDegreeU = degree[i];
+                        minDegreeV = degree[j];
+                        u = i;
+                        v = j;
+                    }
+                }
+            }
+        }
+
+        cout << u << " u" << endl;
+        cout << v << " v" << endl;
+
+        if (u == -1 || v == -1) {
+            // No more edges can be added
+            break;
+        }
+
+        // Add the selected edge to the graph
+        adjMatrix[u][v] = 1;
+        if (!isDirected) {
+            adjMatrix[v][u] = 1; // For undirected graphs
+        }
+        degree[u]++;
+        degree[v]++;
+        addedEdges.push_back({u, v});
+
+        // Check if a Hamiltonian cycle exists
+        for (int start = 0; start < n; ++start) {
+            fill(visited.begin(), visited.end(), false);
+            visited[start] = true;
+            if (isHamiltonianCycle(start, visited, 1, start)) {
+                // Report the edges added
+                cout << "Added edges to create a Hamiltonian cycle: ";
+                for (const auto& edge : addedEdges) {
+                    if (isDirected) {
+                        cout << magenta << "[ " << green << edge.first << " -> " << edge.second << magenta << " ]" << reset << " ";
+                    } else {
+                        cout << magenta << "[ " << green << edge.first << " - " << edge.second << magenta << " ]" << reset << " ";
+                    }
+                }
+                cout << reset << endl;
+                return;
+            }
+        }
+    }
+
+    // If no Hamiltonian cycle was created
+    cout << "Could not create a Hamiltonian cycle with the heuristic approach." << endl;
+}
 
 int main() {
     vector<Graph> graphs;
@@ -611,7 +707,8 @@ int main() {
     cout << "\t" << blue << 2 << ": " << green << "hamming distance exact" << reset << endl;
     cout << "\t" << blue << 3 << ": " << green << "maximal cycle length" << reset << endl;
     cout << "\t" << blue << 4 << ": " << green << "minimal extension" << reset << endl;
-    cout << "\t" << blue << 5 << ": " << green << "exit program" << reset << endl;
+    cout << "\t" << blue << 5 << ": " << green << "minimal extension exact" << reset << endl;
+    cout << "\t" << blue << 6 << ": " << green << "exit program" << reset << endl;
 
     while (true) {
         int choice = -1;
@@ -626,7 +723,7 @@ int main() {
             continue;
         }
 
-        if (choice == 5) {
+        if (choice == 6) {
             cout << magenta << "Exiting program... " << reset << endl;
             break;
         }
@@ -722,6 +819,25 @@ int main() {
                 }
                 break;
             case 4:
+                cout << "\t" << "Enter the graph index: " << reset;
+                if (!(cin >> graphIndex1)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                    break;
+                }
+
+                if (graphIndex1 < graphs.size()) {
+                    Graph graph = graphs[graphIndex1];
+                    cout << "\t" << "Finding minimal extension of graph " << magenta << graph.name << reset << endl;
+                    cout << green << "\t";
+                    graph.minimalExtensionHeuristic();
+                    cout << reset;
+                } else {
+                    cout << red << "\t" << "Wrong graph index!" << reset << endl;
+                }
+                break;
+            case 5:
                 cout << "\t" << "Enter the graph index: " << reset;
                 if (!(cin >> graphIndex1)) {
                     cin.clear();
