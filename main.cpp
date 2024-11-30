@@ -31,9 +31,8 @@ class IGraph {
 public:
     virtual ~IGraph() = default;
     virtual tuple<int, int> size() const = 0;
-    virtual int hammingDistance(const IGraph& other) const = 0;
     virtual vector<int> hammingDistances(const IGraph& other) const = 0;
-    virtual int hammingDistanceExact(const IGraph& other) const = 0;
+    virtual vector<int> hammingDistanceExact(const IGraph& other) const = 0;
     virtual void maximalCycleLength() const = 0;
     virtual void minimalExtension() = 0;
     virtual void printAdjMatrix() const = 0;
@@ -47,9 +46,8 @@ public:
     string name;
     bool isDirected;
     tuple<int, int> size() const override;
-    int hammingDistance(const IGraph& other) const override;
     vector<int> hammingDistances(const IGraph& other) const override;
-    int hammingDistanceExact(const IGraph& other) const override;
+    vector<int> hammingDistanceExact(const IGraph& other) const override;
     void maximalCycleLength() const override;
     void minimalExtension() override;
     void printAdjMatrix() const override;
@@ -164,24 +162,7 @@ tuple<int, int> Graph::size() const {
     return make_tuple(edges, vertices);
 }
 
-// consider subsets for differring number of vertices
-int Graph::hammingDistance(const IGraph& other) const {
-    const Graph& otherGraph = dynamic_cast<const Graph&>(other);
-    int distance = 0;
-    int n = adjMatrix.size();
-    if (n == otherGraph.vertices) {
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                if (adjMatrix[i][j] != otherGraph.adjMatrix[i][j]) {
-                    distance++;
-                }
-            }
-        }
-    }
-    return distance;
-}
-
-std::vector<int> Graph::hammingDistances(const IGraph& other) const {
+vector<int> Graph::hammingDistances(const IGraph& other) const {
     const Graph& otherGraph = dynamic_cast<const Graph&>(other);
     int m = otherGraph.adjMatrix.size();
     int n = adjMatrix.size();
@@ -241,7 +222,7 @@ std::vector<int> Graph::hammingDistances(const IGraph& other) const {
     if (m == n) {
         cout << "\t" << "The hamming distance between the graphs is " << green << distances.at(0) << reset << endl;  
     } else {
-        auto minIt = std::min_element(distances.begin(), distances.end());
+        auto minIt = min_element(distances.begin(), distances.end());
         cout << "\t" << "Sizes of the graphs differ. So, comparing the smaller graph with the subsets of the bigger one." << endl;
         cout << "\t" << "There exists " << green << subsets.size() << " subsets" << reset << ", hence that many hamming distances" << 
         " with the smallest one being " << green << *minIt << reset << "." << endl << endl;
@@ -259,20 +240,96 @@ std::vector<int> Graph::hammingDistances(const IGraph& other) const {
 // placeholder
 // how about isomorphic graphs
 // for exact consider all permutations
-int Graph::hammingDistanceExact(const IGraph& other) const {
+vector<int> Graph::hammingDistanceExact(const IGraph& other) const {
     const Graph& otherGraph = dynamic_cast<const Graph&>(other);
-    int distance = 0;
+    int m = otherGraph.adjMatrix.size();
     int n = adjMatrix.size();
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            if (adjMatrix[i][j] != otherGraph.adjMatrix[i][j]) {
-                distance++;
+
+    const Graph* largerGraph = (n >= m) ? this : &otherGraph;
+    const Graph* smallerGraph = (n >= m) ? &otherGraph : this;
+
+    int largerSize = largerGraph->adjMatrix.size();
+    int smallerSize = smallerGraph->adjMatrix.size();
+
+    vector<int> distances; // Store Hamming distances
+    set<vector<vector<int>>> uniqueMatrices;
+    vector<vector<vector<int>>> bestPermutations; // Store best permutations
+
+    // Generate all subsets of size 'smallerSize' from [0, largerSize-1]
+    vector<int> indices(largerSize);
+    iota(indices.begin(), indices.end(), 0); // [0, 1, ..., largerSize-1]
+    vector<bool> selectSubset(smallerSize, true); // First 'smallerSize' elements set to true
+    selectSubset.resize(largerSize, false); // Rest set to false
+
+    do {
+        // Extract subset indices
+        vector<int> subsetIndices;
+        for (int i = 0; i < largerSize; ++i) {
+            if (selectSubset[i]) subsetIndices.push_back(i);
+        }
+
+        // Create induced subgraph for the selected subset
+        vector<vector<int>> inducedMatrix(smallerSize, vector<int>(smallerSize, 0));
+        for (int i = 0; i < smallerSize; ++i) {
+            for (int j = 0; j < smallerSize; ++j) {
+                inducedMatrix[i][j] = largerGraph->adjMatrix[subsetIndices[i]][subsetIndices[j]];
             }
         }
-    }
-    return distance;
-}
 
+        if (uniqueMatrices.count(inducedMatrix) > 0) continue;
+        uniqueMatrices.insert(inducedMatrix);
+
+        vector<int> vertexIndices(smallerSize);
+        iota(vertexIndices.begin(), vertexIndices.end(), 0); // [0, 1, ..., smallerSize-1]
+        int minDistance = INT_MAX;
+        vector<vector<int>> bestPermutation;
+
+        do {
+            vector<vector<int>> permutedMatrix(smallerSize, vector<int>(smallerSize, 0));
+            for (int i = 0; i < smallerSize; ++i) {
+                for (int j = 0; j < smallerSize; ++j) {
+                    permutedMatrix[i][j] = inducedMatrix[vertexIndices[i]][vertexIndices[j]];
+                }
+            }
+
+            int distance = 0;
+            for (int i = 0; i < smallerSize; ++i) {
+                for (int j = 0; j < smallerSize; ++j) {
+                    if (permutedMatrix[i][j] != smallerGraph->adjMatrix[i][j]) {
+                        distance++;
+                    }
+                }
+            }
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestPermutation = permutedMatrix;
+            }
+
+        } while (next_permutation(vertexIndices.begin(), vertexIndices.end()));
+
+        distances.push_back(minDistance);
+        bestPermutations.push_back(bestPermutation);
+
+    } while (prev_permutation(selectSubset.begin(), selectSubset.end()));
+
+    if (m == n) {
+        cout << "\t" << "The hamming distance between the graphs is " << green << distances.at(0) << reset << endl;  
+    } else {
+        auto minIt = min_element(distances.begin(), distances.end());
+        cout << "\t" << "Sizes of the graphs differ. So, comparing the smaller graph with the subsets of the bigger one." << endl;
+        cout << "\t" << "There exists " << green << bestPermutations.size() << " (best) subsets" << reset << ", hence that many hamming distances" << 
+        " with the smallest one being " << green << *minIt << reset << "." << endl << endl;
+        for (int i = 0; i < distances.size(); i++) {
+            cout << "\t" << i + 1 << ")" << endl;
+            cout << "\t" << "Distance: " << green << distances.at(i) << reset << endl;
+            cout << "\t" << "Subset: " << endl;
+            printAdjMat(bestPermutations.at(i));
+        }
+    }
+
+    return distances;
+}
 
 void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength, vector<vector<int>>& maxCycles, int start) const {
     visited[v] = true;
@@ -535,9 +592,10 @@ int main() {
     cout << yellow << "Program modes:" << reset << endl;
     cout << "\t" << blue << 0 << ": " << green << "size of graph " << magenta << "(# of edges + vertices)" << reset << endl;
     cout << "\t" << blue << 1 << ": " << green << "hamming distance" << reset << endl;
-    cout << "\t" << blue << 2 << ": " << green << "maximal cycle length" << reset << endl;
-    cout << "\t" << blue << 3 << ": " << green << "minimal extension" << reset << endl;
-    cout << "\t" << blue << 4 << ": " << green << "exit program" << reset << endl;
+    cout << "\t" << blue << 2 << ": " << green << "hamming distance exact" << reset << endl;
+    cout << "\t" << blue << 3 << ": " << green << "maximal cycle length" << reset << endl;
+    cout << "\t" << blue << 4 << ": " << green << "minimal extension" << reset << endl;
+    cout << "\t" << blue << 5 << ": " << green << "exit program" << reset << endl;
 
     while (true) {
         int choice = -1;
@@ -552,7 +610,7 @@ int main() {
             continue;
         }
 
-        if (choice == 4) {
+        if (choice == 5) {
             cout << magenta << "Exiting program... " << reset << endl;
             break;
         }
@@ -596,15 +654,39 @@ int main() {
                 if (graphIndex1 < graphs.size() && graphIndex2 < graphs.size()) {
                     Graph graph1 = graphs[graphIndex1];
                     Graph graph2 = graphs[graphIndex2];
-                    // cout << "\t" << "The distance between " << magenta << graph1.name << reset << 
-                    // " and " << magenta << graph2.name << reset << " is " << green << 
-                    // graph1.hammingDistance(graph2) << reset << endl;
                     graph1.hammingDistances(graph2);
                 } else {
                     cout << red << "\t" << "Wrong graph index/indices!" << reset << endl;
                 }
                 break;
             case 2:
+                if (graphs.size() < 2) {
+                    cout << red << "\t" << "Calculating distance requires at least 2 graphs!" << reset << endl;
+                    break;
+                }
+                cout << "\t" << "Enter the first graph index: " << reset;
+                if (!(cin >> graphIndex1)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                    break;
+                }
+                cout << "\t" << "Enter the second graph index: " << reset;
+                if (!(cin >> graphIndex2)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                    break;
+                }
+                if (graphIndex1 < graphs.size() && graphIndex2 < graphs.size()) {
+                    Graph graph1 = graphs[graphIndex1];
+                    Graph graph2 = graphs[graphIndex2];
+                    graph1.hammingDistanceExact(graph2);
+                } else {
+                    cout << red << "\t" << "Wrong graph index/indices!" << reset << endl;
+                }
+                break;
+            case 3:
                 cout << "\t" << "Enter the graph index: " << reset;
                 if (!(cin >> graphIndex1)) {
                     cin.clear();
@@ -623,7 +705,7 @@ int main() {
                     cout << red << "\t" << "Wrong graph index!" << reset << endl;
                 }
                 break;
-            case 3:
+            case 4:
                 cout << "\t" << "Enter the graph index: " << reset;
                 if (!(cin >> graphIndex1)) {
                     cin.clear();
