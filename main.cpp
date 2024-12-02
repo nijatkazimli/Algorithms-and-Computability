@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <numeric>
 #include <set>
+#include <chrono>
 
 using namespace std;
 namespace fs = filesystem;
@@ -17,6 +18,7 @@ const string green = "";
 const string blue = "";
 const string yellow = "";
 const string magenta = "";
+const string underlineBrightMagenta = "";
 const string reset = "";
 #else
 const string red = "\033[1;31m";
@@ -24,6 +26,7 @@ const string green = "\033[1;32m";
 const string blue = "\033[1;34m";
 const string yellow = "\033[1;33m";
 const string magenta = "\033[38;5;129m";
+const string underlineBrightMagenta = "\033[4;95m";
 const string reset = "\033[0m";
 #endif
 
@@ -33,6 +36,7 @@ public:
     virtual tuple<int, int> size() const = 0;
     virtual vector<int> hammingDistances(const IGraph& other) const = 0;
     virtual vector<int> hammingDistanceExact(const IGraph& other) const = 0;
+    virtual void maximalCycleLengthHeuristic() const = 0;
     virtual void maximalCycleLength() const = 0;
     virtual void minimalExtension() = 0;
     virtual void minimalExtensionHeuristic() = 0;
@@ -49,6 +53,7 @@ public:
     tuple<int, int> size() const override;
     vector<int> hammingDistances(const IGraph& other) const override;
     vector<int> hammingDistanceExact(const IGraph& other) const override;
+    void maximalCycleLengthHeuristic() const override;
     void maximalCycleLength() const override;
     void minimalExtension() override;
     void minimalExtensionHeuristic() override;
@@ -140,6 +145,7 @@ void printAdjMat(const vector<vector<int>>& mat) {
 
 // edge + vertices
 tuple<int, int> Graph::size() const {
+    chrono::time_point start = chrono::high_resolution_clock::now();
     int edges = 0;
     int n = adjMatrix.size();
 
@@ -161,10 +167,16 @@ tuple<int, int> Graph::size() const {
         }
     }
 
+    chrono::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
+    cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+     << " seconds" << reset << "  to execute." << endl;
+
     return make_tuple(edges, vertices);
 }
 
 vector<int> Graph::hammingDistances(const IGraph& other) const {
+    chrono::time_point start = chrono::high_resolution_clock::now();
     const Graph& otherGraph = dynamic_cast<const Graph&>(other);
     int m = otherGraph.adjMatrix.size();
     int n = adjMatrix.size();
@@ -236,13 +248,18 @@ vector<int> Graph::hammingDistances(const IGraph& other) const {
         }
     }
 
+    chrono::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
+    cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+     << " seconds" << reset << "  to execute." << endl;
+
     return distances;
 }
 
-// placeholder
 // how about isomorphic graphs
 // for exact consider all permutations
 vector<int> Graph::hammingDistanceExact(const IGraph& other) const {
+    chrono::time_point start = chrono::high_resolution_clock::now();
     const Graph& otherGraph = dynamic_cast<const Graph&>(other);
     int m = otherGraph.adjMatrix.size();
     int n = adjMatrix.size();
@@ -330,6 +347,11 @@ vector<int> Graph::hammingDistanceExact(const IGraph& other) const {
         }
     }
 
+    chrono::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
+    cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+     << " seconds" << reset << "  to execute." << endl;
+
     return distances;
 }
 
@@ -358,7 +380,129 @@ void Graph::dfs(int v, vector<bool>& visited, vector<int>& path, int& maxLength,
     path.pop_back();
 }
 
+// again we rely on the degree of the vertices
+void Graph::maximalCycleLengthHeuristic() const {
+    chrono::time_point start = chrono::high_resolution_clock::now();    
+    int n = adjMatrix.size();
+    vector<bool> visited(n, false);
+    vector<int> path;
+    int maxLength = 0;
+    vector<vector<int>> maxCycles;
+    vector<vector<int>> uniqueCycles;
+
+    // Calculate node degrees
+    vector<int> degrees(n, 0);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            if (adjMatrix[i][j]) degrees[i]++;
+        }
+    }
+
+    // Prioritize nodes by degree
+    vector<int> nodes(n);
+    iota(nodes.begin(), nodes.end(), 0);
+    sort(nodes.begin(), nodes.end(), [&](int a, int b) { return degrees[a] > degrees[b]; });
+
+    // Explore cycles starting from high-degree nodes
+    for (int startNode : nodes) {
+        if (degrees[startNode] < 2) continue; // Skip nodes unlikely to form cycles
+        path.clear();
+        dfs(startNode, visited, path, maxLength, maxCycles, startNode);
+
+        // Stop exploring if a sufficiently long cycle is found
+        if (maxLength >= n / 2) break; // Heuristic cutoff
+    }
+
+    if (maxLength == 0) {
+        cout << red << "NO CYCLES FOUND!" << reset;
+        chrono::time_point end = chrono::high_resolution_clock::now();
+        chrono::duration<double> elapsed = end - start;
+        cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+        << " seconds" << reset << "  to execute." << endl;        
+        return;
+    }
+
+    cout << maxLength << "." << endl << endl;
+    cout << "\t" << blue << "Cycle path(s):" << green << endl;
+
+    int undirectedCounter = 0;
+    for (const auto& cycle : maxCycles) {
+        vector<int> normalizedCycle = cycle;
+        int minVertex = *min_element(cycle.begin(), cycle.end());
+        while (normalizedCycle.front() != minVertex) {
+            rotate(normalizedCycle.begin(), normalizedCycle.begin() + 1, normalizedCycle.end());
+        }
+
+        if (isDirected) {
+            vector<int> clockwiseCycle = normalizedCycle;
+            vector<int> counterClockwiseCycle = normalizedCycle;
+            reverse(counterClockwiseCycle.begin(), counterClockwiseCycle.end());
+            vector<int> smallestCycle = (clockwiseCycle < counterClockwiseCycle) ? clockwiseCycle : counterClockwiseCycle;
+
+            if (find(uniqueCycles.begin(), uniqueCycles.end(), smallestCycle) == uniqueCycles.end()) {
+                uniqueCycles.push_back(smallestCycle);
+                cout << "\t";
+                for (int v : smallestCycle) {
+                    cout << v << " ";
+                }
+                cout << smallestCycle[0] << endl;
+            }
+        } else {
+            vector<int> counterClockwiseCycle = normalizedCycle;
+            reverse(counterClockwiseCycle.begin(), counterClockwiseCycle.end());
+
+            bool isDuplicate = false;
+            for (const auto& existingCycle : uniqueCycles) {
+                if (existingCycle == normalizedCycle || existingCycle == counterClockwiseCycle) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+
+            if (!isDuplicate) {
+                uniqueCycles.push_back(normalizedCycle);
+            }
+        }
+    }
+
+    int undirectedSize = uniqueCycles.size() / 2;
+
+    if (!isDirected && !uniqueCycles.empty()) {
+        for (const auto& cycle : uniqueCycles) {
+            cout << "\t";
+            for (int v : cycle) {
+                cout << v << " ";  
+            }
+            cout << cycle[0] << endl;  
+
+            undirectedCounter++;
+
+            if (undirectedCounter == undirectedSize) {
+                break; 
+            }
+        } 
+    }
+
+    if (uniqueCycles.empty()) {
+        cout << red << "No unique cycles found!" << reset << endl;
+    } else {
+        cout << "\n\t" << "Heuristic number of cycles of maximal length is ";
+
+        if(isDirected) {
+            cout << uniqueCycles.size();
+        } else {
+            cout << uniqueCycles.size() / 2;
+        } 
+        cout << "." << reset << endl;
+    }
+    chrono::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
+    cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+     << " seconds" << reset << "  to execute." << endl;
+}
+
 void Graph::maximalCycleLength() const {
+    chrono::time_point start = chrono::high_resolution_clock::now();      
     int n = adjMatrix.size();
     vector<bool> visited(n, false);
     vector<int> path;
@@ -372,11 +516,14 @@ void Graph::maximalCycleLength() const {
 
     if (maxLength == 0) {
         cout << red << "NO CYCLES FOUND!" << reset;
+        chrono::time_point end = chrono::high_resolution_clock::now();
+        chrono::duration<double> elapsed = end - start;
+        cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+        << " seconds" << reset << "  to execute." << endl;        
         return;
     }
 
     cout << maxLength << "." << endl << endl;
-    // cout << "There exist(s) " << maxCycles.size() << " cycle(s) of maximal length." << endl << endl;    // maxCycles.size() doesn't output the correct number 
     cout << "\t" << blue << "Cycle path(s):" << green << endl;
 
     vector<vector<int>> savedCycles;
@@ -467,8 +614,12 @@ void Graph::maximalCycleLength() const {
         } else {
             cout << uniqueCycles.size() / 2;
         } 
-        cout << "." << endl;
+        cout << "." << reset << endl;
     }
+    chrono::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
+    cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+     << " seconds" << reset << "  to execute." << endl;        
 }
 
 // I think, O(V!) complexity
@@ -491,9 +642,8 @@ bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int st
 
 // Hamiltonian!!
 // assume connectivity
-// I should print the edges
-// DOES NOT WORK WITH DIRECTED
 void Graph::minimalExtension() {
+    chrono::time_point startTime = chrono::high_resolution_clock::now();
     int n = adjMatrix.size();
     bool isDirected = checkIfDirected(); //determine if the graph is directed
 
@@ -503,6 +653,10 @@ void Graph::minimalExtension() {
         visited[start] = true;
         if (isHamiltonianCycle(start, visited, 1, start)) {
             cout << "The graph already has a Hamiltonian cycle." << endl;
+            chrono::time_point end = chrono::high_resolution_clock::now();
+            chrono::duration<double> elapsed = end - startTime;
+            cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+                << " seconds" << reset << "  to execute." << endl;
             return;
         }
         visited[start] = false;
@@ -553,6 +707,10 @@ void Graph::minimalExtension() {
                         adjMatrix[edge.second][edge.first] = 0; // for undirected graphs
                     }
                 }
+                chrono::time_point end = chrono::high_resolution_clock::now();
+                chrono::duration<double> elapsed = end - startTime;
+                cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+                << " seconds" << reset << "  to execute." << endl;                    
                 return;
             }
         }
@@ -578,7 +736,11 @@ void Graph::minimalExtension() {
     }
 
     // If no Hamiltonian cycle could be created
-    cout << "Could not create a Hamiltonian cycle even with added edges." << endl;
+    cout << "Could not create a Hamiltonian cycle even with added edges." << reset << endl;
+    chrono::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - startTime;
+    cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+     << " seconds" << reset << "  to execute." << endl;
 }
 
 // adds edges between the least degree vertices
@@ -587,6 +749,7 @@ void Graph::minimalExtension() {
 // so might add unnecessary edges
 // but we can keep it for heuristic solution.
 void Graph::minimalExtensionHeuristic() {
+    chrono::time_point startTime = chrono::high_resolution_clock::now();    
     int n = adjMatrix.size();
     bool isDirected = checkIfDirected(); // Determine if the graph is directed
 
@@ -596,6 +759,10 @@ void Graph::minimalExtensionHeuristic() {
         visited[start] = true;
         if (isHamiltonianCycle(start, visited, 1, start)) {
             cout << "The graph already has a Hamiltonian cycle." << endl;
+            chrono::time_point end = chrono::high_resolution_clock::now();
+            chrono::duration<double> elapsed = end - startTime;
+            cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+                << " seconds" << reset << "  to execute." << endl;            
             return;
         }
         visited[start] = false;
@@ -666,13 +833,21 @@ void Graph::minimalExtensionHeuristic() {
                     }
                 }
                 cout << reset << endl;
+                chrono::time_point end = chrono::high_resolution_clock::now();
+                chrono::duration<double> elapsed = end - startTime;
+                cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+                    << " seconds" << reset << "  to execute." << endl;                       
                 return;
             }
         }
     }
 
     // If no Hamiltonian cycle was created
-    cout << "Could not create a Hamiltonian cycle with the heuristic approach." << endl;
+    cout << "Could not create a Hamiltonian cycle with the heuristic approach." << reset << endl;
+    chrono::time_point end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - startTime;
+    cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
+     << " seconds" << reset << "  to execute." << endl;    
 }
 
 int main() {
@@ -706,9 +881,10 @@ int main() {
     cout << "\t" << blue << 1 << ": " << green << "hamming distance" << reset << endl;
     cout << "\t" << blue << 2 << ": " << green << "hamming distance exact" << reset << endl;
     cout << "\t" << blue << 3 << ": " << green << "maximal cycle length" << reset << endl;
-    cout << "\t" << blue << 4 << ": " << green << "minimal extension" << reset << endl;
-    cout << "\t" << blue << 5 << ": " << green << "minimal extension exact" << reset << endl;
-    cout << "\t" << blue << 6 << ": " << green << "exit program" << reset << endl;
+    cout << "\t" << blue << 4 << ": " << green << "maximal cycle length exact" << reset << endl;
+    cout << "\t" << blue << 5 << ": " << green << "minimal extension" << reset << endl;
+    cout << "\t" << blue << 6 << ": " << green << "minimal extension exact" << reset << endl;
+    cout << "\t" << blue << 7 << ": " << green << "exit program" << reset << endl;
 
     while (true) {
         int choice = -1;
@@ -723,7 +899,7 @@ int main() {
             continue;
         }
 
-        if (choice == 6) {
+        if (choice == 7) {
             cout << magenta << "Exiting program... " << reset << endl;
             break;
         }
@@ -812,13 +988,32 @@ int main() {
                     Graph graph = graphs[graphIndex1];
                     cout << "\t" << "Maximal cycle length of graph " << magenta << graph.name << reset 
                     << " is " << green;
-                    graph.maximalCycleLength();
+                    graph.maximalCycleLengthHeuristic();
                     cout << reset << endl;
                 } else {
                     cout << red << "\t" << "Wrong graph index!" << reset << endl;
                 }
                 break;
             case 4:
+                cout << "\t" << "Enter the graph index: " << reset;
+                if (!(cin >> graphIndex1)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << red << "\t" << "Invalid input! Please enter a valid graph index." << reset << endl;
+                    break;
+                }
+
+                if (graphIndex1 < graphs.size()) {
+                    Graph graph = graphs[graphIndex1];
+                    cout << "\t" << "Maximal cycle length of graph " << magenta << graph.name << reset 
+                    << " is " << green;
+                    graph.maximalCycleLength();
+                    cout << reset << endl;
+                } else {
+                    cout << red << "\t" << "Wrong graph index!" << reset << endl;
+                }
+                break;
+            case 5:
                 cout << "\t" << "Enter the graph index: " << reset;
                 if (!(cin >> graphIndex1)) {
                     cin.clear();
@@ -837,7 +1032,7 @@ int main() {
                     cout << red << "\t" << "Wrong graph index!" << reset << endl;
                 }
                 break;
-            case 5:
+            case 6:
                 cout << "\t" << "Enter the graph index: " << reset;
                 if (!(cin >> graphIndex1)) {
                     cin.clear();
