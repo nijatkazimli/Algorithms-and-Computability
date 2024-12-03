@@ -664,10 +664,6 @@ void Graph::minimalExtension() {
 
     // Handle cases where more than one edge might be needed
     // Use BFS to search for the minimal set of edges to add
-
-    // added the case for directed graphs
-    // seems to work... not thoroughly tested though!
-
     queue<vector<pair<int, int>>> edgeQueue; // Queue to store edges being added
     edgeQueue.push({}); // Start with no edges added
 
