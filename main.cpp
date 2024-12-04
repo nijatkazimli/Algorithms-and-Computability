@@ -236,16 +236,17 @@ vector<int> Graph::hammingDistances(const IGraph& other) const {
     if (m == n) {
         cout << "\t" << "The hamming distance between the graphs is " << green << distances.at(0) << reset << endl;  
     } else {
-        auto minIt = min_element(distances.begin(), distances.end());
-        cout << "\t" << "Sizes of the graphs differ. So, comparing the smaller graph with the subsets of the bigger one." << endl;
-        cout << "\t" << "There exists " << green << subsets.size() << " subsets" << reset << ", hence that many hamming distances" << 
-        " with the smallest one being " << green << *minIt << reset << "." << endl << endl;
-        for (int i = 0; i < distances.size(); i++) {
+         for (int i = 0; i < distances.size(); i++) {
             cout << "\t" << i + 1 << ")" << endl;
             cout << "\t" << "Distance: " << green << distances.at(i) << reset << endl;
             cout << "\t" << "Subset: " << endl;
             printAdjMat(subsets.at(i));
         }
+
+        auto minIt = min_element(distances.begin(), distances.end());
+        cout << "\t" << "Sizes of the graphs differ. So, comparing the smaller graph with the subsets of the bigger one." << endl;
+        cout << "\t" << "There exists " << green << subsets.size() << " subsets" << reset << ", hence that many hamming distances" << 
+        " with the smallest one being " << green << *minIt << reset << "." << endl << endl;
     }
 
     chrono::time_point end = chrono::high_resolution_clock::now();
@@ -797,8 +798,8 @@ void Graph::minimalExtensionHeuristic() {
             }
         }
 
-        cout << u << " u" << endl;
-        cout << v << " v" << endl;
+        // cout << u << " u" << endl;
+        // cout << v << " v" << endl;
 
         if (u == -1 || v == -1) {
             // No more edges can be added
@@ -859,30 +860,31 @@ int main() {
 
     cout << magenta << "Algorithms and Computability " << reset << endl;
 
-    if (!graphs.empty()) {
+    while (true) {
+        cout << "----------------------------------------------------------------------" << endl;
+        if (!graphs.empty()) {
         cout << endl;
         cout << yellow << "Graph files found in current directory:\n" << reset;
         for (size_t i = 0; i < graphs.size(); ++i) {
             cout << "\t" << blue << i << ": " << green << graphs[i].name << reset << " - " 
             << yellow << (graphs[i].isDirected ? "directed" : "undirected") << reset << endl;
         }
-    } else {
-        cout << red << "No .txt files found in the current directory." << reset << endl;
-        return 1;
-    }
+        } else {
+            cout << red << "No .txt files found in the current directory." << reset << endl;
+            return 1;
+        }
 
-    cout << endl;
-    cout << yellow << "Program modes:" << reset << endl;
-    cout << "\t" << blue << 0 << ": " << green << "size of graph " << magenta << "(# of edges + vertices)" << reset << endl;
-    cout << "\t" << blue << 1 << ": " << green << "hamming distance" << reset << endl;
-    cout << "\t" << blue << 2 << ": " << green << "hamming distance exact" << reset << endl;
-    cout << "\t" << blue << 3 << ": " << green << "maximal cycle length" << reset << endl;
-    cout << "\t" << blue << 4 << ": " << green << "maximal cycle length exact" << reset << endl;
-    cout << "\t" << blue << 5 << ": " << green << "minimal extension" << reset << endl;
-    cout << "\t" << blue << 6 << ": " << green << "minimal extension exact" << reset << endl;
-    cout << "\t" << blue << 7 << ": " << green << "exit program" << reset << endl;
+        cout << endl;
+        cout << yellow << "Program modes:" << reset << endl;
+        cout << "\t" << blue << 0 << ": " << green << "size of graph " << magenta << "(# of edges + vertices)" << reset << endl;
+        cout << "\t" << blue << 1 << ": " << green << "hamming distance" << reset << endl;
+        cout << "\t" << blue << 2 << ": " << green << "hamming distance exact" << reset << endl;
+        cout << "\t" << blue << 3 << ": " << green << "maximal cycle length" << reset << endl;
+        cout << "\t" << blue << 4 << ": " << green << "maximal cycle length exact" << reset << endl;
+        cout << "\t" << blue << 5 << ": " << green << "minimal extension" << reset << endl;
+        cout << "\t" << blue << 6 << ": " << green << "minimal extension exact" << reset << endl;
+        cout << "\t" << blue << 7 << ": " << green << "exit program" << reset << endl;
 
-    while (true) {
         int choice = -1;
         cout << endl;
         cout << yellow << "Enter your choice (index of mode): " << reset;
