@@ -395,6 +395,10 @@ void Graph::maximalCycleLengthHeuristic() const {
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
             if (adjMatrix[i][j]) degrees[i]++;
+            if (isDirected) {
+                if (adjMatrix[j][i]) degrees[i]++; // the edges coming to it
+                // can also be a nice factor for forming a cycle
+            }
         }
     }
 
@@ -405,6 +409,7 @@ void Graph::maximalCycleLengthHeuristic() const {
 
     // Explore cycles starting from high-degree nodes
     for (int startNode : nodes) {
+        cout << degrees[startNode] << endl;
         if (degrees[startNode] < 2) continue; // Skip nodes unlikely to form cycles
         path.clear();
         dfs(startNode, visited, path, maxLength, maxCycles, startNode);
