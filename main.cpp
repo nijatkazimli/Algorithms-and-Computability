@@ -411,7 +411,6 @@ void Graph::maximalCycleLengthHeuristic() const {
 
     // Explore cycles starting from high-degree nodes
     for (int startNode : nodes) {
-        cout << degrees[startNode] << endl;
         if (degrees[startNode] < 2) continue; // Skip nodes unlikely to form cycles
         path.clear();
         dfs(startNode, visited, path, maxLength, maxCycles, startNode);
