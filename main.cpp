@@ -409,7 +409,7 @@ void Graph::maximalCycleLengthHeuristic() const {
 
     // Explore cycles starting from high-degree nodes
     for (int startNode : nodes) {
-        cout << degrees[startNode] << endl;
+        // cout << degrees[startNode] << endl;
         if (degrees[startNode] < 2) continue; // Skip nodes unlikely to form cycles
         path.clear();
         dfs(startNode, visited, path, maxLength, maxCycles, startNode);
@@ -419,7 +419,7 @@ void Graph::maximalCycleLengthHeuristic() const {
     }
 
     if (maxLength == 0) {
-        cout << red << "NO CYCLES FOUND!" << reset;
+        cout << red << "NO CYCLES FOUND!" << endl << reset;
         chrono::time_point end = chrono::high_resolution_clock::now();
         chrono::duration<double> elapsed = end - start;
         cout << "\tIt took  " << underlineBrightMagenta << elapsed.count()
