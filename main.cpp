@@ -874,7 +874,7 @@ int main() {
         cout << "----------------------------------------------------------------------" << endl;
         if (!graphs.empty()) {
         cout << endl;
-        cout << yellow << "Graph files found in current directory:\n" << reset;
+        cout << yellow << "Graph files found in graphs directory:\n" << reset;
         for (size_t i = 0; i < graphs.size(); ++i) {
             cout << "\t" << blue << i << ": " << green << graphs[i].name << reset << " - " 
             << yellow << (graphs[i].isDirected ? "directed" : "undirected") << reset << endl;
