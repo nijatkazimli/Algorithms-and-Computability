@@ -46,7 +46,7 @@ public:
 
 class Graph : public IGraph {
 public:
-    Graph(const string& filename);
+    Graph(const string& path, const string& name);
     Graph(int n, const vector<vector<int>> adjMatrix);
     string name;
     bool isDirected;
@@ -68,14 +68,14 @@ private:
     bool checkIfDirected() const override;
 };
 
-Graph::Graph(const string& filename) {
-    ifstream file(filename);
+Graph::Graph(const string& path, const string& graphName) {
+    ifstream file(path);
     if (!file.is_open()) {
-        cerr << "Error: Unable to open file " << filename << endl;
+        cerr << "Error: Unable to open file " << path << endl;
         exit(EXIT_FAILURE);
     }
 
-    name = filename;
+    name = graphName;
 
     if (!(file >> vertices) || vertices <= 0) {
         cerr << "Error: Invalid number of vertices in file." << endl;
@@ -857,11 +857,18 @@ void Graph::minimalExtensionHeuristic() {
 
 int main() {
     vector<Graph> graphs;
+    fs::path graphsFolder = "graphs";
 
-    for (const auto& entry : filesystem::directory_iterator(fs::current_path())) {
+    if (!fs::exists(graphsFolder)) {
+        std::cerr << red << "Error: Folder '" << graphsFolder.string() << "' does not exist." << std::endl;
+        return 1;
+    }
+
+    for (const auto& entry : filesystem::directory_iterator(graphsFolder)) {
         if (entry.is_regular_file() && entry.path().extension() == ".txt") {
-            string fileName = entry.path().filename().string();
-            Graph graph = Graph(fileName);
+            string path = entry.path().string();
+            string name = entry.path().filename().string();
+            Graph graph = Graph(path, name);
             graphs.push_back(graph);
         }
     }
