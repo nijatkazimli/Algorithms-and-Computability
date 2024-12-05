@@ -880,7 +880,7 @@ int main() {
             << yellow << (graphs[i].isDirected ? "directed" : "undirected") << reset << endl;
         }
         } else {
-            cout << red << "No .txt files found in the current directory." << reset << endl;
+            cout << red << "No .txt files found in the graphs directory." << reset << endl;
             return 1;
         }
 
