@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <vector>
 #include <string>
+#include <queue>
 #include <tuple>
 #include <algorithm>
 #include <numeric>
