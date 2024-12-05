@@ -72,25 +72,22 @@ private:
 Graph::Graph(const string& path, const string& graphName) {
     ifstream file(path);
     if (!file.is_open()) {
-        cerr << "Error: Unable to open file " << path << endl;
-        exit(EXIT_FAILURE);
+        throw runtime_error("Error: Unable to open file " + path + ". Skipping this file.");
     }
 
     name = graphName;
 
     if (!(file >> vertices) || vertices <= 0) {
-        cerr << "Error: Invalid number of vertices in file." << endl;
         file.close();
-        exit(EXIT_FAILURE);
+        throw runtime_error("Error: Invalid number of vertices in file: " + path + ". Skipping this file.");
     }
 
     adjMatrix.resize(vertices, vector<int>(vertices));
     for (int i = 0; i < vertices; ++i) {
         for (int j = 0; j < vertices; ++j) {
             if (!(file >> adjMatrix[i][j])) {
-                cerr << "Error: Insufficient or invalid data in adjacency matrix." << endl;
                 file.close();
-                exit(EXIT_FAILURE);
+                throw runtime_error("Error: Insufficient or invalid data in adjacency matrix in file: " + path + ". Skipping this file.");
             }
         }
     }
@@ -854,13 +851,62 @@ void Graph::minimalExtensionHeuristic() {
 int main() {
     vector<Graph> graphs;
     fs::path graphsFolder = "graphs";
+    fs::path examplesFolder = "../Examples";
+    fs::path parentFolder = "../";
 
     if (!fs::exists(graphsFolder)) {
-        std::cerr << red << "Error: Folder '" << graphsFolder.string() << "' does not exist." << std::endl;
-        return 1;
+        cout << "Folder '" << graphsFolder.string() << "' does not exist." << reset << endl;
+    } else {
+        try {
+            for (const auto& entry : filesystem::directory_iterator(graphsFolder)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".txt") {
+                    string path = entry.path().string();
+                    string name = entry.path().filename().string();
+                    Graph graph = Graph(path, name);
+                    graphs.push_back(graph);
+                }
+            }
+        } catch (const exception& e) {
+            cerr << e.what() << endl;
+        }
     }
 
-    for (const auto& entry : filesystem::directory_iterator(graphsFolder)) {
+    if (!fs::exists(examplesFolder)) {
+        cout << "Folder '" << examplesFolder.string() << "' does not exist." << reset << endl; 
+    } else {
+        try {
+            for (const auto& entry : filesystem::directory_iterator(examplesFolder)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".txt") {
+                    string path = entry.path().string();
+                    string name = entry.path().filename().string();
+                    Graph graph = Graph(path, name);
+                    graphs.push_back(graph);
+                }
+            }
+        } catch (const exception& e) {
+            cerr << e.what() << endl;
+        }
+    }
+
+    // not realistic but better than having an unknown crash
+    if (!fs::exists(parentFolder)) {
+        cout << "Parent folder does not exist." << reset << endl; 
+    } else {
+        try {
+            for (const auto& entry : filesystem::directory_iterator(parentFolder)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".txt") {
+                    string path = entry.path().string();
+                    string name = entry.path().filename().string();
+                    Graph graph = Graph(path, name);
+                    graphs.push_back(graph);
+                }
+            }
+        } catch (const exception& e) {
+            cerr << e.what() << endl;
+        }
+    }
+
+    for (const auto& entry : filesystem::directory_iterator(fs::current_path())) {
         if (entry.is_regular_file() && entry.path().extension() == ".txt") {
             string path = entry.path().string();
             string name = entry.path().filename().string();
@@ -875,13 +921,13 @@ int main() {
         cout << "----------------------------------------------------------------------" << endl;
         if (!graphs.empty()) {
         cout << endl;
-        cout << yellow << "Graph files found in graphs directory:\n" << reset;
+        cout << yellow << "Graph files found:\n" << reset;
         for (size_t i = 0; i < graphs.size(); ++i) {
             cout << "\t" << blue << i << ": " << green << graphs[i].name << reset << " - " 
             << yellow << (graphs[i].isDirected ? "directed" : "undirected") << reset << endl;
         }
         } else {
-            cout << red << "No .txt files found in the graphs directory." << reset << endl;
+            cout << red << "No .txt files found." << reset << endl;
             return 1;
         }
 
