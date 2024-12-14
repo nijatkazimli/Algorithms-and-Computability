@@ -48,7 +48,7 @@ public:
 class Graph : public IGraph {
 public:
     Graph(const string& path, const string& name);
-    Graph(int n, const vector<vector<int>> adjMatrix);
+    Graph(const string& graphName, int n, const vector<vector<int>> adjMatrix);
     string name;
     bool isDirected;
     tuple<int, int> size() const override;
@@ -97,8 +97,8 @@ Graph::Graph(const string& path, const string& graphName) {
     file.close();
 }
 
-Graph::Graph(int n, const vector<vector<int>> manualAdjMatrix) {
-  name = "manual";
+Graph::Graph(const string& graphName, int n, const vector<vector<int>> manualAdjMatrix) {
+  name = graphName;
   vertices = n;
   adjMatrix.resize(n, vector<int>(n));
   for (int i = 0; i < vertices; ++i) {
@@ -171,6 +171,34 @@ tuple<int, int> Graph::size() const {
      << " seconds" << reset << "  to execute." << endl;
 
     return make_tuple(edges, vertices);
+}
+
+void readGraphsFromFile(const string& path, const string& baseName, vector<Graph>& graphs) {
+    ifstream file(path);
+    if (!file.is_open()) {
+        cerr << "Unable to open file" << endl;
+        exit(1);
+    }
+
+    int numberOfGraphs;
+    file >> numberOfGraphs;
+
+    for (int k = 0; k < numberOfGraphs; ++k) {
+        int vertices;
+        file >> vertices;
+
+        vector<vector<int>> adjMatrix(vertices, vector<int>(vertices));
+        for (int i = 0; i < vertices; ++i) {
+            for (int j = 0; j < vertices; ++j) {
+                file >> adjMatrix[i][j];
+            }
+        }
+
+        string graphName = baseName + "_" + to_string(k);
+        graphs.emplace_back(graphName, vertices, adjMatrix);
+    }
+
+    file.close();
 }
 
 vector<int> Graph::hammingDistances(const IGraph& other) const {
@@ -862,8 +890,7 @@ int main() {
                 if (entry.is_regular_file() && entry.path().extension() == ".txt") {
                     string path = entry.path().string();
                     string name = entry.path().filename().string();
-                    Graph graph = Graph(path, name);
-                    graphs.push_back(graph);
+                    readGraphsFromFile(path, name, graphs);
                 }
             }
         } catch (const exception& e) {
@@ -879,8 +906,7 @@ int main() {
                 if (entry.is_regular_file() && entry.path().extension() == ".txt") {
                     string path = entry.path().string();
                     string name = entry.path().filename().string();
-                    Graph graph = Graph(path, name);
-                    graphs.push_back(graph);
+                    readGraphsFromFile(path, name, graphs);
                 }
             }
         } catch (const exception& e) {
@@ -897,8 +923,7 @@ int main() {
                 if (entry.is_regular_file() && entry.path().extension() == ".txt") {
                     string path = entry.path().string();
                     string name = entry.path().filename().string();
-                    Graph graph = Graph(path, name);
-                    graphs.push_back(graph);
+                    readGraphsFromFile(path, name, graphs);
                 }
             }
         } catch (const exception& e) {
@@ -910,8 +935,7 @@ int main() {
         if (entry.is_regular_file() && entry.path().extension() == ".txt") {
             string path = entry.path().string();
             string name = entry.path().filename().string();
-            Graph graph = Graph(path, name);
-            graphs.push_back(graph);
+            readGraphsFromFile(path, name, graphs);
         }
     }
 
