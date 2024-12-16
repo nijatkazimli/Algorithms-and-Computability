@@ -283,8 +283,6 @@ vector<int> Graph::hammingDistances(const IGraph& other) const {
     return distances;
 }
 
-// how about isomorphic graphs
-// for exact consider all permutations
 vector<int> Graph::hammingDistanceExact(const IGraph& other) const {
     chrono::time_point start = chrono::high_resolution_clock::now();
     const Graph& otherGraph = dynamic_cast<const Graph&>(other);
@@ -655,7 +653,6 @@ void Graph::maximalCycleLength() const {
      << " seconds" << reset << "  to execute." << endl;        
 }
 
-// I think, O(V!) complexity
 bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int start) const {
     if (count == adjMatrix.size()) {
         return adjMatrix[pos][start] != 0;
@@ -673,8 +670,6 @@ bool Graph::isHamiltonianCycle(int pos, vector<bool>& visited, int count, int st
     return false;
 }
 
-// Hamiltonian!!
-// assume connectivity
 void Graph::minimalExtension() {
     chrono::time_point startTime = chrono::high_resolution_clock::now();
     int n = adjMatrix.size();
@@ -772,11 +767,6 @@ void Graph::minimalExtension() {
      << " seconds" << reset << "  to execute." << endl;
 }
 
-// adds edges between the least degree vertices
-// until it finds hamiltonian cyle
-// does not check if just one added edge caused this or all
-// so might add unnecessary edges
-// but we can keep it for heuristic solution.
 void Graph::minimalExtensionHeuristic() {
     chrono::time_point startTime = chrono::high_resolution_clock::now();    
     int n = adjMatrix.size();
